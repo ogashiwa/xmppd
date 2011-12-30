@@ -27,7 +27,6 @@ class servsess:
         
         print(m)
         mt = msgin.getmsgtype(m)
-        
         if mt == 'stream:stream':
             sthdr = msgin.sthdr(m)
             if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
