@@ -4,10 +4,12 @@ import socket
 
 class servsess:
     
-    def __init__(self):
-        self.type = 'connection' # connection, dialback
-        self.stat = 'wait' # wait authorized
-        self.stream = None
+    def __init__(self,st):
+        #self.type = 'connection' # connection, dialback
+        #self.stat = 'wait' # wait authorized
+        self.stream = st
+        self.stream.recv = self.recv
+        self.stream.closed = self.closed
         pass
     
     def sendsthdr(self):
@@ -21,13 +23,40 @@ class servsess:
         self.stream.send(m)
         pass
     
-    def recevied(self,st,m):
-        if : # receive stream header
-            # send stream header with id
-            return
-        pass
-    
-    def closed(self,st,m):
+    def recv(self, stream, m):
+        
+        print(m)
+        mt = getmsgtype(m)
+        
+        if mt == 'stream:stream':
+            sthdr = msgin.sthdr(m)
+            if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
+                stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER))
+                stream.send(msgout.featdback())
+                pass
+            #ss = server.server.session(stream,self.manager)
+            #self.clientlist.append(ss)
+            #while stream in self.tcpconlist: self.tcpconlist.remove(stream)
+            pass
+        
+        if mt == 'result':
+            # if type is valid
+            # change connection status to 'ready'
+            pass
+
+        if mt == 'verify':
+            t = xml.etree.ElementTree.fromstring(m)
+            t.attrs['type'] = 'valid'
+            sto = t.attrs['to']
+            sfr = t.attrs['from']
+            t.attrs['to'] = sfr
+            t.attrs['from'] = sto
+            stream.send(tostring(t).decode('utf-8'))
+            pass
+        
+        if mt == '/stream:stream':
+            self.stream.close()
+            pass
         
         pass
     
