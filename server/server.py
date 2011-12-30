@@ -2,6 +2,7 @@
 
 import xml
 from xml.etree import ElementTree
+import xmpp
 import xmpp.ns as ns
 import xmpp.msg as msg
 import xmpp.msgin as msgin
@@ -24,14 +25,39 @@ class servsess:
         self.reqsendkey = False
         self.m_recvsthdr = ''
         self.m_sendsthdr = ''
+        self.check_connection = False
         self.key = '12378489238471923708295802384023874109832942304728371083212093'#randstr(128)
         pass
     
     def recv(self, stream, m):
         
-        print(m)
         mt = msgin.getmsgtype(m)
+
+        # forward the message if needed
+        mto = msgin.getmsgto(m)
+        mfr = msgin.getmsgfrom(m)
+        (uname, sname, rname) = msgin.splitjid(mto)
+        print((uname, sname, rname))
+        if sname != '' and sname != self.manager.servname: #forward msg to other server
+            self.manager.svssmanager.sendqueue.put((mfr,mto,m))
+            self.manager.svssmanager.flush()
+            return
+        tome = False
+        if len(mto) == 0: tome = True
+        if mto == self.manager.servname: tome = True
+        if tome == False:
+            targ = []
+            targ = self.manager.sessmanager.getforwardsess(mto)
+            for ses in targ:
+                xmpp.utils.dprint("!!! FORWARD TO "+ses.name)
+                #m = msgout.addfrom(m, self.name)
+                ses.send(m)
+                pass
+            return
+        
         if mt == 'stream:stream':
+            #self.stream.ready = True
+            #self.stream.send('')
             sthdr = msgin.sthdr(m)
             self.m_recvsthdr = m
             if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
@@ -56,33 +82,86 @@ class servsess:
             #while stream in self.tcpconlist: self.tcpconlist.remove(stream)
             pass
         
+        if mt == 'stream:features' or mt == 'features':
+            self.stream.ready = True
+            self.stream.send('')
+            pass
+        
         if mt == 'result':
             # if type is valid
             # change connection status to 'ready'
+            
             xr = msg.xmsg(self.m_recvsthdr)
             xr.fromstring(m)
-            if xr.e.attrib['type']=='valid':
+
+            if ('type' in xr.e.attrib) == False:
+                mf = msgin.getmsgfrom(m)                
+                domain = mf
+                host = self.manager.svssmanager.srvrec(domain)
+                #xxx
+                xr = msg.xmsg(self.m_recvsthdr)
+                xr.fromstring(m)
+                xs = msg.xmsg(self.m_sendsthdr)
+                xs.fromstring(m)
+                xs.e.attrib['type'] = 'valid'
+                xs.e.attrib['to'] = xr.e.attrib['from']
+                xs.e.attrib['from'] = xr.e.attrib['to']
+                self.stream.send(xs.tostring())
+                #######################################################
+                # print("### connect to " + host + " as master of " + domain)
+                # st = xmpp.stream.stream()
+                # ss = servsess()
+                # ss.manager = self.manager
+                # ss.mfrom = self.manager.servname
+                # ss.mto = domain
+                # ss.stream = st
+                # st.CBF_recv = ss.recv
+                # st.CBF_closed = self.manager.svssmanager.closed
+                # st.connect(host,5269)
+                # st.start()
+                # ss.m_sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes',msgto=domain)
+                # st.send(ss.m_sendsthdr)
+                # ss.sendsthdr = True
+                # ss.sendfeat = True
+                # ss.check_connection = True
+                # newm = msg.xmsg(ss.m_sendsthdr,
+                #                 tag='db:verify',
+                #                 attrib={'from':self.manager.servname,
+                #                         'to':domain,
+                #                         'id':randstr(16)},
+                #                 text=xr.e.text)
+                # ss.stream.ready = False
+                # st.send(newm.tostring())
+                # self.manager.svssmanager.peersvlist.append(ss)
+                #######################################################
+                pass
+            
+            elif xr.e.attrib['type']=='valid':
+                if self.check_connection == True:
+                    self.stream.send("</stream:stream>")
+                    self.stream.close()
+                    return
                 self.stat='ready'
                 self.manager.svssmanager.flush()
                 pass
+            
             pass
 
         if mt == 'verify':
             xr = msg.xmsg(self.m_recvsthdr)
             xr.fromstring(m)
+            if ('type' in xr.e.attrib) != False:
+                if xr.e.attrib['type'] == 'invalid':
+                    self.stream.close()
+                    return
+                pass
+            
             xs = msg.xmsg(self.m_sendsthdr)
             xs.fromstring(m)
             xs.e.attrib['type'] = 'valid'
             xs.e.attrib['to'] = xr.e.attrib['from']
             xs.e.attrib['from'] = xr.e.attrib['to']
             stream.send(xs.tostring())
-            #t = xml.etree.ElementTree.fromstring(m)
-            #t.attrs['type'] = 'valid'
-            #sto = t.attrs['to']
-            #sfr = t.attrs['from']
-            #t.attrs['to'] = sfr
-            #t.attrs['from'] = sto
-            #stream.send(tostring(t).decode('utf-8'))
             pass
         
         if mt == '/stream:stream':

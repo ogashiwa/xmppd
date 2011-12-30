@@ -114,7 +114,6 @@ class session():
         
         # forward the message if needed
         mto = msgin.getmsgto(m)
-        #mfrom = msgin.getmsgfrom(m)
         mfrom = self.fulljid
         (uname, sname, rname) = msgin.splitjid(mto)
         print((uname, sname, rname))

@@ -38,11 +38,12 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom.minidom import parseString
 from xmpp.utils import randstr
 
-def sthdr(afrom='', type='', msgid='', xmlnsdb=''):
+def sthdr(afrom='', type='', msgid='', xmlnsdb='', msgto=''):
     tst = Element(ns.TAG_STST)
     tst.set(ns.ATRBT_VER, "1.0")
     if msgid!='no': tst.set(ns.ATRBT_ID, randstr(8))
     tst.set(ns.ATRBT_FROM, afrom)
+    if msgto!='':tst.set(ns.ATRBT_TO, msgto)
     tst.set(ns.XMLNS, type)
     tst.set(ns.XMLNS_STREAM, ns.HTTP_ETHERX)
     if xmlnsdb != '': tst.set('xmlns:db', "jabber:server:dialback")

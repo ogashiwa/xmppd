@@ -45,6 +45,7 @@ class stream(threading.Thread):
         self._binbuf = bytearray()
         self._utfbuf = ""
         self._SendQueue = queue.Queue()
+        self.ready = True
         pass
     
     def run(self):
@@ -75,6 +76,7 @@ class stream(threading.Thread):
     def send(self,m):
         try:
             if len(m) > 0: self._SendQueue.put(m)
+            if self.ready == False: return
             while self._SendQueue.empty() is False:
                 b = self._SendQueue.get()
                 utils.dprint("S:"+b)
