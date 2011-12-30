@@ -31,10 +31,11 @@ class xmlblock:
 
 _register_namespace_finished = False
 def _register_namespace():
+    global _register_namespace_finished
     if _register_namespace_finished == False:
-        ElementTree.register_namespace('', 'jabber:server')
-        ElementTree.register_namespace('db', 'jabber:server:dialback')
-        ElementTree.register_namespace('stream', 'http://etherx.jabber.org/streams')
+        ET.register_namespace('', 'jabber:server')
+        ET.register_namespace('db', 'jabber:server:dialback')
+        ET.register_namespace('stream', 'http://etherx.jabber.org/streams')
         pass
     _register_namespace_finished = True
     pass
@@ -50,6 +51,7 @@ class xmsg:
         return s
     
     def __init__(self,header, tag='', attrib={}, text='', sub=[]):
+        _register_namespace()
         (self.header, self.tailer) = (header, '</stream:stream>')
         self.e = None
         if tag!='': self.create(tag,attrib,text,sub)

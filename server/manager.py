@@ -29,7 +29,9 @@
 import datetime
 import sys, socket, threading, time, getopt, re
 import xmpp.stream, xmpp.msgin, xmpp.msgout, xmpp.auth, xmpp.utils
+import xmpp
 import xmpp.ns as ns
+import xmpp.msg as msg
 import xmpp.msgin as msgin
 import xmpp.msgout as msgout
 import server.client, server.component, server.server
@@ -52,11 +54,17 @@ class svssmanager:
         
         # search peer-connection by mto(jh)
         for ps in self.peersvlist:
-            if ps.name == jh:
-                ps.send(msg)
+            if ps.mto == jh and ps.stat=='ready':
+                x = xmpp.msg.xmsg(ps.m_sendsthdr)
+                x.fromstring(msg)
+                x.e.attrib['from'] = mfr
+                ps.stream.send(x.tostring())
+                return
+            elif ps.mto == jh and ps.stat!='ready':
+                self.sendqueue.put((mfr,mto,msg))
                 return
             pass
-
+        
         # get SRV record
         domain = jh
         host = self.srvrec(domain)
@@ -65,6 +73,7 @@ class svssmanager:
         print("### connect to " + host + " as master of " + domain)
         self.connect(domain, host, 5269)
         
+        self.sendqueue.put((mfr,mto,msg))
         pass
     
     def srvrec(self,domain):
@@ -103,7 +112,8 @@ class svssmanager:
         st.CBF_closed = self.closed
         st.connect(serv,port)
         st.start()
-        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes'))
+        ss.m_sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes')
+        st.send(ss.m_sendsthdr)
         ss.sendsthdr = True
         ss.reqsendkey = True
         self.peersvlist.append(ss)
@@ -124,9 +134,10 @@ class svssmanager:
         st.CBF_recv = ss.recv
         st.CBF_closed = self.closed
         st.socket = s
-        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, xmlnsdb='yes')+\
-                '<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>')
+        ss.m_sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, xmlnsdb='yes')
+        st.send(ss.m_sendsthdr+'<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>')
         ss.sendsthdr = True
+        ss.sendfeat = True
         st.start()
         self.peersvlist.append(ss)
         pass

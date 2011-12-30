@@ -114,7 +114,8 @@ class session():
         
         # forward the message if needed
         mto = msgin.getmsgto(m)
-        mfrom = msgin.getmsgfrom(m)
+        #mfrom = msgin.getmsgfrom(m)
+        mfrom = self.fulljid
         (uname, sname, rname) = msgin.splitjid(mto)
         print((uname, sname, rname))
         if sname != '' and sname != self.manager.servname: #forward msg to other server

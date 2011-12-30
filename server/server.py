@@ -13,13 +13,17 @@ import socket
 class servsess:
     
     def __init__(self):
+        self.stat = ''
         self.manager = None
         self.mfrom = ''
         self.mto = ''
         self.stream = None
         self.sendsthdr = False
+        self.sendfeat = False
         self.authorized = False
         self.reqsendkey = False
+        self.m_recvsthdr = ''
+        self.m_sendsthdr = ''
         self.key = '12378489238471923708295802384023874109832942304728371083212093'#randstr(128)
         pass
     
@@ -29,15 +33,22 @@ class servsess:
         mt = msgin.getmsgtype(m)
         if mt == 'stream:stream':
             sthdr = msgin.sthdr(m)
+            self.m_recvsthdr = m
             if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
-                if self.sendsthdr==False: stream.send(msgout.sthdr(self.mfrom, ns.JABBER_SERVER))
+                if self.sendsthdr==False:
+                    self.m_sendsthdr = msgout.sthdr(self.mfrom, ns.JABBER_SERVER)
+                    stream.send(self.m_sendsthdr)
+                    pass
                 elif self.authorized==False and self.reqsendkey==True:
                     m = '<db:result from="{MFROM}" to="{MTO}">{MKEY}</db:result>'
                     m = m.format(MFROM=self.mfrom,MTO=self.mto,MKEY=self.key)
                     stream.send(m)
                     pass
                 else:
-                    stream.send(msgout.featdback())
+                    if self.sendfeat==False:
+                        stream.send(msgout.featdback())
+                        self.sendfeat=True
+                        pass
                     pass
                 pass
             #ss = server.server.session(stream,self.manager)
@@ -48,19 +59,34 @@ class servsess:
         if mt == 'result':
             # if type is valid
             # change connection status to 'ready'
+            xr = msg.xmsg(self.m_recvsthdr)
+            xr.fromstring(m)
+            if xr.e.attrib['type']=='valid':
+                self.stat='ready'
+                self.manager.svssmanager.flush()
+                pass
             pass
 
         if mt == 'verify':
-            t = xml.etree.ElementTree.fromstring(m)
-            t.attrs['type'] = 'valid'
-            sto = t.attrs['to']
-            sfr = t.attrs['from']
-            t.attrs['to'] = sfr
-            t.attrs['from'] = sto
-            stream.send(tostring(t).decode('utf-8'))
+            xr = msg.xmsg(self.m_recvsthdr)
+            xr.fromstring(m)
+            xs = msg.xmsg(self.m_sendsthdr)
+            xs.fromstring(m)
+            xs.e.attrib['type'] = 'valid'
+            xs.e.attrib['to'] = xr.e.attrib['from']
+            xs.e.attrib['from'] = xr.e.attrib['to']
+            stream.send(xs.tostring())
+            #t = xml.etree.ElementTree.fromstring(m)
+            #t.attrs['type'] = 'valid'
+            #sto = t.attrs['to']
+            #sfr = t.attrs['from']
+            #t.attrs['to'] = sfr
+            #t.attrs['from'] = sto
+            #stream.send(tostring(t).decode('utf-8'))
             pass
         
         if mt == '/stream:stream':
+            print("### closed ###")
             self.stream.close()
             pass
         

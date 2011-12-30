@@ -56,7 +56,7 @@ def featdback():
     tst = Element(ns.TAG_STFE)
     tmechs = SubElement(tst, "dialback")
     tmechs.set(ns.XMLNS, "urn:xmpp:features:dialback")
-    tmech = SubElement(tmechs, 'required')
+    tmech = SubElement(tmechs, 'optional')
     return tostring(tst).decode("utf-8")
 
 def featmech():
