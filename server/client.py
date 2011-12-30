@@ -114,10 +114,10 @@ class session():
         mfrom = msgin.getmsgfrom(m)
         (uname, sname, rname) = msgin.splitjid(mto)
         print((uname, sname, rname))
-        #if sname != '' and sname != self.manager.servname: #forward msg to other server
-        #    self.manager.svssmanager.sendqueue.put((mfrom,mto,m))
-        #    self.manager.svssmanager.flush()
-        #    return
+        if sname != '' and sname != self.manager.servname: #forward msg to other server
+            self.manager.svssmanager.sendqueue.put((mfrom,mto,m))
+            self.manager.svssmanager.flush()
+            return
         tome = False
         if len(mto) == 0: tome = True
         if mto == self.manager.servname: tome = True

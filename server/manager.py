@@ -32,20 +32,21 @@ import xmpp.stream, xmpp.msgin, xmpp.msgout, xmpp.auth, xmpp.utils
 import xmpp.ns as ns
 import xmpp.msgin as msgin
 import xmpp.msgout as msgout
-import server.client, server.component
+import server.client, server.component, server.server
 import xml
 import queue
+import subprocess
 
 class svssmanager:
     
     def __init__(self, manager):
         self.manager = manager
-        #self.tcpconlist = []
         self.peersvlist = []
         self.sendqueue = queue.Queue()
         pass
 
     def flush(self):
+        
         (mfr,mto,msg) = self.sendqueue.get()
         (ju,jh,jr) = msgin.splitjid(mto)
         
@@ -56,72 +57,73 @@ class svssmanager:
                 return
             pass
 
+        # get SRV record
+        domain = jh
+        host = self.srvrec(domain)
+        
         # connect to server
-        print("### connect to " + jh)
+        print("### connect to " + host + " as master of " + domain)
+        self.connect(domain, host, 5269)
         
         pass
     
-    def recv(self, stream, m):
-        
-        print(m)
-        mt = getmsgtype(m)
-        
-        if mt == 'stream:stream':
-            sthdr = msgin.sthdr(m)
-            if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
-                stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER))
-                stream.send(msgout.featdback())
-                pass
-            #ss = server.server.session(stream,self.manager)
-            #self.clientlist.append(ss)
-            #while stream in self.tcpconlist: self.tcpconlist.remove(stream)
+    def srvrec(self,domain):
+        m = subprocess.check_output(['/usr/bin/host', '-t', 'SRV', '_xmpp-server._tcp.'+domain])
+        m = m.decode('utf-8')
+        lm = m.splitlines()
+        svlist=[]
+        for l in lm:
+            r = re.search(r'(?ms).*SRV record (.+) (.+) (.+) (.+)\.[\r\n]*', l)
+            (prio,weig,port,host) = (int(r.group(1)),int(r.group(2)),
+                                     int(r.group(3)),r.group(4))
+            svlist.append((host,port,prio,weig))
             pass
-        
-        if mt == 'result':
-            # if type is valid
-            # change connection status to 'ready'
+        minsv = ''
+        for s in svlist:
+            if minsv == '': minsv = s
+            if minsv[2] > s[2]: minsv = s
             pass
-
-        if mt == 'verify':
-            t = xml.etree.ElementTree.fromstring(m)
-            t.attrs['type'] = 'valid'
-            sto = t.attrs['to']
-            sfr = t.attrs['from']
-            t.attrs['to'] = sfr
-            t.attrs['from'] = sto
-            stream.send(tostring(t).decode('utf-8'))
-            pass
-        
-        if mt == '/stream:stream':
-            self.stream.close()
-            pass
-        
-        pass
-    
+        minsv = minsv[0]
+        return minsv
+                                                            
     def closed(self,st,m):
         for sess in self.peersvlist:
             if sess.stream is st: self.peersvlist.remove(sess)
             pass
         pass
 
-    def connect(self,serv,port):
+    def connect(self,domain,serv,port):
         st = xmpp.stream.stream()
-        st.CBF_recv = self.recv
+        ss = server.server.servsess()
+        ss.manager = self.manager
+        ss.mfrom = self.manager.servname
+        ss.mto = domain
+        ss.stream = st
+        st.CBF_recv = ss.recv
         st.CBF_closed = self.closed
         st.connect(serv,port)
         st.start()
-        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER))
-        self.peersvlist.append(st)
+        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes'))
+        ss.sendsthdr = True
+        ss.reqsendkey = True
+        self.peersvlist.append(ss)
         pass
     
     def addsocket(self,s):
         print("def addsocket(self,s):")
         st = xmpp.stream.stream()
-        st.CBF_recv = self.recv
+        ss = server.server.servsess()
+        ss.manager = self.manager
+        ss.mfrom = self.manager.servname
+        ss.stream = st
+        st.CBF_recv = ss.recv
         st.CBF_closed = self.closed
         st.socket = s
+        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, xmlnsdb='yes')+\
+                '<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>')
+        ss.sendsthdr = True
         st.start()
-        self.peersvlist.append(st)
+        self.peersvlist.append(ss)
         pass
     pass
 

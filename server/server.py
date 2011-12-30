@@ -1,33 +1,69 @@
 #!/usr/local/bin/python3.2
 
+import xml
+from xml.etree import ElementTree
+import xmpp.ns as ns
+import xmpp.msg as msg
+import xmpp.msgin as msgin
+import xmpp.msgout as msgout
+from xmpp.utils import randstr
+
 import socket
 
 class servsess:
     
     def __init__(self):
-        self.type = 'connection' # connection, dialback
-        self.stat = 'wait' # wait authorized
+        self.manager = None
+        self.mfrom = ''
+        self.mto = ''
         self.stream = None
+        self.sendsthdr = False
+        self.authorized = False
+        self.reqsendkey = False
+        self.key = '12378489238471923708295802384023874109832942304728371083212093'#randstr(128)
         pass
     
-    def sendsthdr(self):
-        a={'xmlns':'jabber:server',
-           'xmlns:db':'jabber:server:dialback',
-           'xmlns:stream':'http://etherx.jabber.org/streams',
-           'from':'nlab.im', #xxx
-           'to':'jabber.org',#xxx
-           'version':'1.0'}
-        m = xs1.newstr(tag="stream:stream",attrib=a)
-        self.stream.send(m)
-        pass
-    
-    def recevied(self,st,m):
-        if : # receive stream header
-            # send stream header with id
-            return
-        pass
-    
-    def closed(self,st,m):
+    def recv(self, stream, m):
+        
+        print(m)
+        mt = msgin.getmsgtype(m)
+        
+        if mt == 'stream:stream':
+            sthdr = msgin.sthdr(m)
+            if sthdr.attrs[ns.XMLNS] == ns.JABBER_SERVER:
+                if self.sendsthdr==False: stream.send(msgout.sthdr(self.mfrom, ns.JABBER_SERVER))
+                elif self.authorized==False and self.reqsendkey==True:
+                    m = '<db:result from="{MFROM}" to="{MTO}">{MKEY}</db:result>'
+                    m = m.format(MFROM=self.mfrom,MTO=self.mto,MKEY=self.key)
+                    stream.send(m)
+                    pass
+                else:
+                    stream.send(msgout.featdback())
+                    pass
+                pass
+            #ss = server.server.session(stream,self.manager)
+            #self.clientlist.append(ss)
+            #while stream in self.tcpconlist: self.tcpconlist.remove(stream)
+            pass
+        
+        if mt == 'result':
+            # if type is valid
+            # change connection status to 'ready'
+            pass
+
+        if mt == 'verify':
+            t = xml.etree.ElementTree.fromstring(m)
+            t.attrs['type'] = 'valid'
+            sto = t.attrs['to']
+            sfr = t.attrs['from']
+            t.attrs['to'] = sfr
+            t.attrs['from'] = sto
+            stream.send(tostring(t).decode('utf-8'))
+            pass
+        
+        if mt == '/stream:stream':
+            self.stream.close()
+            pass
         
         pass
     
