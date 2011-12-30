@@ -75,7 +75,7 @@ class MechDigestMD5:
         pass
     def proc(self, m):
         if self.state == self.STATE_INIT:
-            m = msgout.md5ch1(self.realm, self.nonce)
+            m = msgout.md5ch1(self.manager.sendsthdr,self.realm, self.nonce)
             self.manager.CBF_SendFunc(m)
             self.state = self.STATE_CHALLENGE
             pass
@@ -101,13 +101,13 @@ class MechDigestMD5:
             if authresult == True:
                 ra = self.GetDigestMD5Str(username, password,
                                           realm, nonce, cnonce, nc, uri, qop, 2)
-                m = msgout.success(ra)
+                m = msgout.success(self.manager.sendsthdr,ra)
                 self.manager.CBF_SendFunc(m)
                 self.state = self.STATE_CHALLENGEOK
                 self.manager.authenticated = True
                 pass
             else:
-                m = msgout.failure()
+                m = msgout.failure(self.manager.sendsthdr)
                 self.manager.CBF_SendFunc(m)
                 self.manager.authenticated = False
                 pass
@@ -125,13 +125,13 @@ class MechPlain:
         u = p.username
         pw = p.password
         if pw == self.manager.CBF_GetPasswordFunc(u):
-            m = msgout.success()
+            m = msgout.success(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = True
             self.manager.CBF_SendFunc(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
             pass
         else:
-            m = msgout.failure()
+            m = msgout.failure(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = False
             pass
@@ -143,7 +143,7 @@ class MechAnonymous:
         self.manager = man
         pass
     def proc(self, m):
-        m = msgout.success('')
+        m = msgout.success(self.manager.sendsthdr)
         self.manager.CBF_SendFunc(m)
         self.manager.authenticated = True
         pass
@@ -160,6 +160,8 @@ class manager:
         self.username = ""
         self.authenticated = False
         self.mech = None
+        self.sendsthdr = ''
+        self.recvsthdr = ''
         pass
     def ProcMsgAuthentication(self, m):
         p = msgin.auth(m)

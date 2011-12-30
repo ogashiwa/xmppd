@@ -30,6 +30,8 @@ import binascii
 import xml.etree.ElementTree
 import xml.dom.minidom
 import xml.parsers.expat
+import xmpp.msg
+from xmpp.msg import xmsg
 import xmpp.utils
 import xmpp.ns as ns
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -80,46 +82,31 @@ def auth(username, password):
     ta.text = binascii.b2a_base64(s).decode("utf-8")
     return tostring(ta).decode("utf-8")    
 
-def md5ch1(r, n):
+def md5ch1(h, r, n):
     chal = 'realm="{R}",nonce="{N}",qop="auth",charset=utf-8,algorithm=md5-sess'
     chal = chal.format(R=r, N=n)
     chal = chal.encode("cp932")
     b64str = binascii.b2a_base64(chal).decode("utf-8")
     b64str = b64str.replace('\n', '')
-    tch = Element(ns.TAG_CHLNG)
-    tch.set(ns.XMLNS, ns.XMPP_SASL)
-    tch.text = b64str
-    return tostring(tch).decode("utf-8")
+    m = xmsg(h,tag=ns.TAG_CHLNG,attrib={ns.XMLNS:ns.XMPP_SASL},text=b64str)
+    return m.tostring()
 
-def md5ch2(ra):
-    chal = 'respauth={R}'
-    chal = chal.format(R=ra)
-    chal = chal.encode("cp932")
-    b64str = binascii.b2a_base64(chal).decode("utf-8")
-    b64str = b64str.replace('\n', '')
-    tch = Element(ns.TAG_CHLNG)
-    tch.set(ns.XMLNS, ns.XMPP_SASL)
-    tch.text = b64str
-    return tostring(tch).decode("utf-8")
-
-def success(ra):
-    tsuc = Element(ns.TAG_SUCC)
-    tsuc.set(ns.XMLNS, ns.XMPP_SASL)
-    if ra != '':
-        chal = 'rspauth={R}'
-        chal = chal.format(R=ra)
-        chal = chal.encode("cp932")
+def success(sthdr, rspauth=''):
+    ratext = ''
+    if rspauth != '':
+        chal = ('rspauth={R}'.format(R=rspauth)).encode("cp932")
         b64str = binascii.b2a_base64(chal).decode("utf-8")
-        b64str = b64str.replace('\n', '')
-        tsuc.text = b64str
+        ratext = b64str.replace('\n', '')
         pass
-    return tostring(tsuc).decode("utf-8")
+    m = xmsg(sthdr,tag=ns.TAG_SUCC,attrib={ns.XMLNS:ns.XMPP_SASL},text=ratext)
+    return m.tostring()
 
-def failure():
-    tfai = Element(ns.TAG_FAIL)
-    tfai.set(ns.XMLNS, ns.XMPP_SASL)
-    ttaf = SubElement(tfai, "temporary-auth-failure")
-    return tostring(tfai).decode("utf-8") + "</stream:stream>"
+def failure(sthdr):
+    m = xmsg(sthdr,
+             tag=ns.TAG_FAIL,
+             attrib={ns.XMLNS:ns.XMPP_SASL},
+             sub=[xmsg(sthdr,"temporary-auth-failure")])
+    return m.tostring()+"</stream:stream>"
 
 def featbs():
     tst = Element(ns.TAG_STFE)

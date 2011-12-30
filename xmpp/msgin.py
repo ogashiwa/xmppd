@@ -79,16 +79,24 @@ class parser:
     def data(self, data): pass
     pass
 
-class xmlblock(parser):
+class xmlblock():
     def __init__(self,d):
-        parser.__init__(self)
+        self.p = xml.parsers.expat.ParserCreate()
+        self.p.StartElementHandler  = self.start
+        self.p.EndElementHandler    = self.end
+        self.p.CharacterDataHandler = self.data
         self.d = d
         self.dep = 0
         try: self.p.Parse(self.d,0)
         except: pass
         pass
+    def data(self, data): pass
     def start(self,tag,attrs): self.dep += 1
     def end(self,tag): self.dep -= 1
+    def close(self):
+        self.p.Parse("", 1)
+        del self.p
+        pass
     def get(self):
         if self.dep == 0 and self.p.CurrentByteIndex >= 4:
             return (self.d[:self.p.CurrentByteIndex],

@@ -105,7 +105,10 @@ class session():
         
         # process stream header
         if mt == ns.TAG_STST:
-            self.send(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
+            sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT)
+            self.authman.sendsthdr = sendsthdr
+            self.authman.recvsthdr = m
+            self.send(sendsthdr)
             self.send(msgout.featbs())
             return
         

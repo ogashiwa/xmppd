@@ -32,11 +32,7 @@ import xmpp.stream, xmpp.msgin, xmpp.msgout, xmpp.auth, xmpp.utils
 import xmpp.ns as ns
 import xmpp.msgin as msgin
 import xmpp.msgout as msgout
-<<<<<<< HEAD
 import server.client, server.component, server.server
-=======
-import server.client, server.component, server.servsess
->>>>>>> 761eb5615f1d2f91b805003636c084d4671309f4
 import xml
 import queue
 import subprocess
@@ -71,7 +67,6 @@ class svssmanager:
         
         pass
     
-<<<<<<< HEAD
     def srvrec(self,domain):
         m = subprocess.check_output(['/usr/bin/host', '-t', 'SRV', '_xmpp-server._tcp.'+domain])
         m = m.decode('utf-8')
@@ -111,16 +106,6 @@ class svssmanager:
         st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes'))
         ss.sendsthdr = True
         ss.reqsendkey = True
-=======
-    def connect(self,serv,port):
-        st = xmpp.stream.stream()
-        ss = server.servsess(st)
-        #st.CBF_recv = self.recv
-        st.CBF_closed = self.closed
-        st.connect(serv,port)
-        st.start()
-        st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER))
->>>>>>> 761eb5615f1d2f91b805003636c084d4671309f4
         self.peersvlist.append(ss)
         pass
     
@@ -132,16 +117,11 @@ class svssmanager:
 
     def addsocket(self,s):
         st = xmpp.stream.stream()
-<<<<<<< HEAD
         ss = server.server.servsess()
         ss.manager = self.manager
         ss.mfrom = self.manager.servname
         ss.stream = st
         st.CBF_recv = ss.recv
-=======
-        ss = server.servsess(st)
-        #st.CBF_recv = self.recv
->>>>>>> 761eb5615f1d2f91b805003636c084d4671309f4
         st.CBF_closed = self.closed
         st.socket = s
         st.send(msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, xmlnsdb='yes')+\

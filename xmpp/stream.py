@@ -27,11 +27,10 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys, socket, threading, time, abc, re, queue, string, random
-from . import utils, ns
-import xmpp.msgin
+from . import utils, ns, msg
 
 class stream(threading.Thread):
-    """class XmppStream(threading.Thread):"""
+    """ class XmppStream(threading.Thread): """
     def nf(self,s,m):
         pass
     def __init__(self):
@@ -86,15 +85,11 @@ class stream(threading.Thread):
         pass
     
     def connect(self, serv, port):
-        #self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.socket.connect((serv, port))
         self.socket = socket.create_connection((serv, port), 5)
         self.socket.settimeout(None)
         pass
     
     def connect6(self, serv, port):
-        #self.socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        #self.socket.connect((serv, port))
         self.socket = socket.create_connection((serv, port), 5)
         self.socket.settimeout(None)
         pass
@@ -109,11 +104,9 @@ class stream(threading.Thread):
         if res:
             utils.dprint("R:"+res.group(1))
             s = res.group(2)
-            #try: s = s.decode('utf-8')
-            #except: pass
             self.CBF_recv(self,res.group(1))
         while True:
-            spl = xmpp.msgin.xmlblock(s)
+            spl = msg.xmlblock(s)
             (blk, s) = spl.get()
             if len(blk) > 0:
                 utils.dprint("R:"+blk)
