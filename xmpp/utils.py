@@ -45,10 +45,13 @@ def perror():
 
 def dprint(m):
     global _debug
-    now = datetime.datetime.now()
-    if _debug:
-        print(now, m)
+    try:
+        now = datetime.datetime.now()
+        if _debug:
+            print(now, m)
+            pass
         pass
+    except: pass
     pass
 
 def print_clear():

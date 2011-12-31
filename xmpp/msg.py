@@ -60,7 +60,7 @@ _register_namespace_finished = False
 def _register_namespace():
     global _register_namespace_finished
     if _register_namespace_finished == False:
-        ET.register_namespace('', 'jabber:client')
+        # ET.register_namespace('', 'jabber:client')
         ET.register_namespace('db', 'jabber:server:dialback')
         ET.register_namespace('stream', 'http://etherx.jabber.org/streams')
         pass

@@ -26,134 +26,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#import datetime
-#import sys, socket, threading, time, getopt, re
-#import xmpp.stream, xmpp.msgin, xmpp.msgout, xmpp.auth, xmpp.utils
-#import xmpp
-#import xmpp.ns as ns
-#import xmpp.msg as msg
-#
-#import xmpp.msgout as msgout
-#
-#import server.client, server.component, server.server
-#import xml
-#import queue
-
-import threading, re, socket, time, subprocess
+import threading, re, socket, time, subprocess, xml
 import xmpp, xmpp.stream, xmpp.auth
 import xmpp.msgin as msgin
 import xmpp.utils as utils
 from xmpp.msg import xmsg as xm
-
-#class svssmanager:
-#    
-#    def __init__(self, manager):
-#        self.manager = manager
-#        self.peersvlist = []
-#        self.sendqueue = queue.Queue()
-#        pass
-#
-#    def flush(self):
-#        
-#        (mfr,mto,msg) = self.sendqueue.get()
-#        (ju,jh,jr) = msgin.splitjid(mto)
-#        
-#        # search peer-connection by mto(jh)
-#        for ps in self.peersvlist:
-#            if ps.mto == jh and ps.stat=='ready':
-#                x = xmpp.msg.xmsg(ps.m_sendsthdr)
-#                x.fromstring(msg)
-#                x.e.attrib['from'] = mfr
-#                ps.stream.send(x.tostring())
-#                return
-#            elif ps.mto == jh and ps.stat!='ready':
-#                self.sendqueue.put((mfr,mto,msg))
-#                return
-#            pass
-#        
-#        # get SRV record
-#        domain = jh
-#        host = self.srvrec(domain)
-#        
-#        # connect to server
-#        print("### connect to " + host + " as master of " + domain)
-#        self.connect(domain, host, 5269)
-#        
-#        self.sendqueue.put((mfr,mto,msg))
-#        pass
-#    
-#    def srvrec(self,domain):
-#        m = subprocess.check_output(['/usr/bin/host', '-t', 'SRV', '_xmpp-server._tcp.'+domain])
-#        m = m.decode('utf-8')
-#        lm = m.splitlines()
-#        svlist=[]
-#        for l in lm:
-#            r = re.search(r'(?ms).*SRV record (.+) (.+) (.+) (.+)\.[\r\n]*', l)
-#            (prio,weig,port,host) = (int(r.group(1)),int(r.group(2)),
-#                                     int(r.group(3)),r.group(4))
-#            svlist.append((host,port,prio,weig))
-#            pass
-#        minsv = ''
-#        for s in svlist:
-#            if minsv == '': minsv = s
-#            if minsv[2] > s[2]: minsv = s
-#            pass
-#        minsv = minsv[0]
-#        return minsv
-#                                                            
-#    def closed(self,st,m):
-#        for sess in self.peersvlist:
-#            if sess.stream is st: self.peersvlist.remove(sess)
-#            pass
-#        pass
-#
-#    def connect(self,domain,serv,port):
-#        st = xmpp.stream.stream()
-#        ss = server.server.servsess()
-#        ss.manager = self.manager
-#        ss.mfrom = self.manager.servname
-#        ss.mto = domain
-#        ss.stream = st
-#        st.CBF_recv = ss.recv
-#        st.CBF_closed = self.closed
-#        st.connect(serv,port)
-#        st.start()
-#        ss.m_sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, msgid='no', xmlnsdb='yes')
-#        st.send(ss.m_sendsthdr)
-#        ss.sendsthdr = True
-#        ss.reqsendkey = True
-#        self.peersvlist.append(ss)
-#        pass
-#    
-#    def closed(self,st,m):
-#        for sess in self.peersvlist:
-#            if sess.stream is st: self.peersvlist.remove(sess)
-#            pass
-#        pass
-#
-#    def addsocket(self,s):
-#        st = xmpp.stream.stream()
-#        ss = server.server.servsess()
-#        ss.manager = self.manager
-#        ss.mfrom = self.manager.servname
-#        ss.stream = st
-#        st.CBF_recv = ss.recv
-#        st.CBF_closed = self.closed
-#        st.socket = s
-#        ss.m_sendsthdr = msgout.sthdr(self.manager.servname, ns.JABBER_SERVER, xmlnsdb='yes')
-#        st.send(ss.m_sendsthdr+'<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>')
-#        ss.sendsthdr = True
-#        ss.sendfeat = True
-#        st.start()
-#        self.peersvlist.append(ss)
-#        pass
-#    pass
 
 class session:
     
     def __init__(self):
         self.manager = None
         self.authman = None
+        self.servauth = False
         self.peername = ''
         self.username = ''
         self.resource = ''
@@ -235,8 +119,11 @@ class session:
             
             elif m.find('jabber:server')>0:
                 self.Type='Server'
+                if 'from' in x.e.attrib: self.peername = x.e.attrib['from']
                 a['xmlns'] = 'jabber:server'
-                self.peername = x.e.attrib['from']
+                a['xmlns:db']='jabber:server:dialback'
+                a['to'] = self.peername
+                a['id'] = utils.randstr(16)
                 nx.create(tag='stream:stream', attrib=a)
                 pass
             
@@ -272,22 +159,33 @@ class session:
             if self.Type=='Component':
                 self.peername = x.e.attrib['from']
                 pass
-            
+
+            if self.Type=='Server':
+                nx = xm(self.SentHeader)
+                nx.create(tag='stream:features',sub=[xm(self.SentHeader,tag='dialback',
+                                                        attrib={'xmlns':'urn:xmpp:features:dialback'},
+                                                        sub=[xm(self.SentHeader,tag='optional')])])
+                if self.servauth: self.send(nx.tostring())
+                pass
             return
         
-        print(x.e.tag)
+        utils.dprint(x.e.tag)
         if 'to' in x.e.attrib:
-            print(x.e.attrib['to'])
+            utils.dprint(x.e.attrib['to'])
             (uname, sname, rname) = msgin.splitjid(x.e.attrib['to'])
-            print((uname, sname, rname))
+            utils.dprint((uname, sname, rname))
             for sess in self.manager.sessmanager.sessionlist:
                 fw = False
                 if x.e.attrib['to']==sess.ident(): fw = True
-                elif x.e.attrib['to']==sess.barejid(): fw = True
                 elif sname==sess.ident(): fw = True
                 if fw==True:
-                    if ('from' in x.e.attrib)==False: x.e.attrib['from']=self.ident()
-                    sess.send(x.tostring())
+                    utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
+                    if m.find(' xmlns="jabber:client"')>0: m=m.replace(' xmlns="jabber:client"','', 1)
+                    t = xml.etree.ElementTree.fromstring(m)
+                    t.set("from", self.ident())
+                    a = xml.etree.ElementTree.tostring(t).decode("utf-8")
+                    utils.dprint(a)
+                    sess.send(a)
                     return
                 pass
             if sname!=self.manager.servname:
@@ -358,11 +256,12 @@ class session:
         
         elif self.Type=='Component':
             if x.e.tag=='{jabber:component:accept}handshare':
-                print(m)
+                utils.dprint(m)
                 return
             pass
         
         elif self.Type=='Server':
+            
             if x.e.tag=='{http://etherx.jabber.org/streams}features':
                 DialBackTag='{urn:xmpp:features:dialback}dialback'
                 DialBackStz=x.e.find(DialBackTag)
@@ -374,28 +273,39 @@ class session:
                     self.send(nx.tostring())
                     return
                 return
+
+            if x.e.tag=='{jabber:server:dialback}verify':
+                nx = xm(self.SentHeader,tag='db:verify',
+                        attrib={'xmlns:db':'jabber:server:dialback',
+                                'from':x.e.attrib['to'],
+                                'to':x.e.attrib['from'],
+                                'id':x.e.attrib['id'],
+                                'type':'valid'},
+                        text=x.e.text)
+                self.send(nx.tostring())
+                return
+            
+            if x.e.tag=='{jabber:server:dialback}result':
+                if 'type' in x.e.attrib:
+                    if x.e.attrib['type']=='valid':
+                        self.servauth = True
+                    else: self.stream.close()
+                    return
+                else:
+                    nx = xm(self.SentHeader,tag='db:result',
+                            attrib={'from':x.e.attrib['to'],
+                                    'to':x.e.attrib['from'],
+                                    'type':'valid'},
+                            text=x.e.text)
+                    self.send(nx.tostring())
+                    return
+                return
             pass
         
         else:
             return
-        
-        #sthdr = msgin.sthdr(m)
-        #if sthdr.attrs[ns.XMLNS] == ns.JABBER_CLIENT:
-        #    stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
-        #    cs = server.client.session(stream,self.manager)
-        #    self.clientlist.append(cs)
-        #    while stream in self.tcpconlist: self.tcpconlist.remove(stream)
-        #    pass
-        #elif sthdr.attrs[ns.XMLNS] == ns.JABBER_CMPNT:
-        #    stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_CMPNT))
-        #    cm = server.component.session(stream, self.manager)
-        #    cm.name = sthdr.attrs['from']
-        #    self.compntlist.append(cm)
-        #    while stream in self.tcpconlist: self.tcpconlist.remove(stream)
-        #    pass
-        #pass
         pass
-
+    
     pass
 
 class sessmanager:
@@ -404,11 +314,6 @@ class sessmanager:
         self.manager = manager
         self.pendingmsg = []
         self.sessionlist = []
-        
-#        self.tcpconlist = []
-#        self.clientlist = []
-#        self.compntlist = []
-
         pass
     
     def srvrec(self,domain):
@@ -463,7 +368,9 @@ class sessmanager:
                  'from':self.manager.servname,
                  'to':sname}
             nx.create(tag='stream:stream', attrib=a)
-            self.addsocket(ps,pa,nx.tostring())
+            self.addsocket(ps,pa,nx.tostring(),sname)
+            try: self.pendingmsg.append((s,m,t,'connecting'))
+            except: pass
             pass
         pass
     
@@ -494,7 +401,6 @@ class sessmanager:
                      PT="ptype", PS="pstat", PH="pshow")
         print(l)
         for ses in self.sessionlist:
-            #s.print()
             print(ses.Type, ses.stream.peeraddr, ses.ident(),
                   ses.CntSMsg,ses.CntRMsg,
                   int(time.time())-ses.TmPing,
@@ -502,102 +408,14 @@ class sessmanager:
             pass
         pass
     
-#    
-#    def getclientsess(self, jid):
-#        retlist = []
-#        for cs in self.clientlist:
-#            if cs.barejid == jid or cs.fulljid == jid:
-#                retlist.append(cs)
-#                pass
-#            pass
-#        return retlist
-#    
-#    def getcompntsess(self, to):
-#        retlist = []
-#        for cm in self.compntlist:
-#            if cm.name == to or to.find("@"+cm.name) != -1:
-#                retlist.append(cm)
-#                pass
-#            pass
-#        return retlist
-#
-#    def getforwardsess(self,msgto):
-#        retlist = []
-#        if msgto.find("@"):
-#            # if after '@' is me, find client-list
-#            if msgto.find("@"+self.manager.servname):
-#                retlist.extend(self.getclientsess(msgto))
-#                pass
-#            # if after '@' is my components, find component-list
-#            retlist.extend(self.getcompntsess(msgto))
-#            # if after '@' is unknown, other servers
-#            pass
-#        else:
-#            # if '@' doesn't exist, find component-list
-#            retlist.extend(self.getcompntsess(msgto))
-#            pass
-#        return retlist
-    
-#    def recvsthdr(self, stream, m):
-#        sthdr = msgin.sthdr(m)
-#        if sthdr.attrs[ns.XMLNS] == ns.JABBER_CLIENT:
-#            stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
-#            cs = server.client.session(stream,self.manager)
-#            self.clientlist.append(cs)
-#            while stream in self.tcpconlist: self.tcpconlist.remove(stream)
-#            pass
-#        elif sthdr.attrs[ns.XMLNS] == ns.JABBER_CMPNT:
-#            stream.send(msgout.sthdr(self.manager.servname, ns.JABBER_CMPNT))
-#            cm = server.component.session(stream, self.manager)
-#            cm.name = sthdr.attrs['from']
-#            self.compntlist.append(cm)
-#            while stream in self.tcpconlist: self.tcpconlist.remove(stream)
-#            pass
-#        pass
-    
-#    def timercheck(self):
-#        for cs in self.clientlist:
-#            if cs.tmping+60<int(time.time()):
-#                cs.send(msgout.ping(self.manager.servname,cs.fulljid))
-#                cs.tmping = int(time.time())
-#                pass
-#            if cs.tmrmsg+180<int(time.time()):
-#                cs.stream.close()
-#                pass
-#            pass
-#        for cm in self.compntlist:
-#            if cm.tmping+60<int(time.time()):
-#                cm.send(msgout.ping(self.manager.servname,cm.name))
-#                cm.tmping = int(time.time())
-#                pass
-#            if cm.tmrmsg+180<int(time.time()):
-#                cm.stream.close()
-#                pass
-#            pass
-#        pass
-    
     def closed(self,st,m):
         st.close()
         for ses in self.sessionlist:
             if ses.stream is st: self.sessionlist.remove(ses)
             pass
         pass
-#        while st in self.tcpconlist: self.tcpconlist.remove(st)
-#        for sess in self.clientlist:
-#            if sess.stream is st: self.clientlist.remove(sess)
-#            pass
-#        for sess in self.compntlist:
-#            if sess.stream is st: self.compntlist.remove(sess)
-#            pass
-#        pass
 
-    def addsocket(self, peersock, peeraddr, initmsg=''):
-        #s = peersock
-        #st = 
-        #st.CBF_recv = self.recvsthdr
-        #st.CBF_closed = self.closed
-        #st.socket = s
-        #st.start()
+    def addsocket(self, peersock, peeraddr, initmsg='', peername=''):
         ses = session()
         ses.manager = self.manager
         ses.stream = xmpp.stream.stream()
@@ -605,36 +423,17 @@ class sessmanager:
         ses.stream.CBF_closed = self.closed
         ses.stream.peeraddr = peeraddr
         ses.stream.socket = peersock
+        ses.peername = peername
         if initmsg!='':
             ses.send(initmsg)
             ses.SentHeader = initmsg
+            ses.servauth = False
             pass
+        else: ses.servauth = True
         ses.stream.start()
-        #self.tcpconlist.append(st)
         self.sessionlist.append(ses)
         pass
-    
-#    def print(self):
-#        xmpp.utils.print_clear()
-#        print("=====================")
-#        print("clients:")
-#        l = "|{JID:<35}|{CRM:>5}|{CSM:>5}|{TP:>4}|{TR:>4}|{PT:>10}|{PS:>10}|{PH:>10}|"
-#        l = l.format(JID="JID",CRM="#recv",CSM="#send",TP="ping",TR="last",
-#                     PT="ptype", PS="pstat", PH="pshow")
-#        print(l)
-#        for s in self.clientlist:
-#            s.print()
-#            pass
-#        print("=====================")
-#        print("components:")
-#        l = "|{NAME:<35}|{CRM:>5}|{CSM:>5}|{TP:>4}|{TR:>4}|"
-#        l = l.format(NAME="name",CRM="#recv",CSM="#send",TP="ping",TR="last")
-#        print(l)
-#        for s in self.compntlist:
-#            s.print()
-#            pass
-#        pass
-#    pass
+    pass
 
 class confmanager:
 
@@ -742,7 +541,6 @@ class manager:
         self.servname = ''
         self.confmanager = confmanager(self)
         self.sessmanager = sessmanager(self)
-        # self.svssmanager = svssmanager(self)
         
         pass
     
@@ -750,25 +548,10 @@ class manager:
         self.sessmanager.addsocket(ps, pa)
         pass
     
-    #def s2saccept(self, ps, pa):
-    #    print("def s2saccept(self, ps, pa):")
-    #    self.svssmanager.addsocket(ps)
-    #    pass
-    
     def start(self):
         
         self.confmanager.read(self.conffile)
         self.servname = self.confmanager.servname
-        
-        #BindAddress4 = '0.0.0.0'
-        #s4 = serversocket(BindAddress4, int(self.confmanager.cbindport4))
-        #s4.sfamily = socket.AF_INET
-        #s4.sstream = socket.SOCK_STREAM        
-        #BindAddress6 = '::'
-        #s6 = serversocket(BindAddress6, int(self.confmanager.cbindport6))
-        #s6.sfamily = socket.AF_INET6
-        #s6.sstream = socket.SOCK_STREAM        
-        #ss4 = serversocket("0.0.0.0", 5269)
         
         cs4 = serversocket('0.0.0.0', 5222)
         cs4.accepted = self.accept
