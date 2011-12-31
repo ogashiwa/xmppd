@@ -29,6 +29,7 @@
 import threading, re, socket, time, subprocess, xml
 import xmpp, xmpp.stream, xmpp.auth
 import xmpp.utils as utils
+from xml.etree import ElementTree as ET
 from xmpp.msg import xmsg as xm
 
 def splitjid(jid):
@@ -200,22 +201,33 @@ class session:
                 
                 if fw==True:
                     utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
-                    nx = xm(sess.SentHeader)
-                    att = {'from':self.ident(), 'to':x.e.attrib['to']}
+                    inttag = ''
+                    posa = m.find('>')
+                    posb = m.rfind('<')
+                    inttag = m[posa+1:posb]
+                    utils.dprint(inttag)
+                    att={'to':x.e.attrib['to']}
+                    if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
+                    else: att['from']=self.ident()
                     if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
                     if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
-                    nx.create(tag=x.e.tag, attrib=att, subet=x.e.findall('*'))
+                    atstr = ''
+                    for k,v in att.items():
+                        tmpstr = ' {N}="{VAL}" '.format(N=k,VAL=v)
+                        atstr += tmpstr
+                        utils.dprint(atstr)
+                        pass
+                    nt='iq'
+                    if x.e.tag.find('}message')>0: nt='message'
+                    elif x.e.tag.find('}iq')>0: nt='iq'
+                    elif x.e.tag.find('}presence')>0: nt='presence'
+                    
+                    newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
+                    
+                    nx=xm(sess.SentHeader)
+                    nx.fromstring(newmsg)
+                    utils.dprint(nx.tostring())
                     sess.send(nx.tostring())
-                    #if m.find(' xmlns="jabber:client"')>0:
-                    #    m=m.replace(' xmlns="jabber:client"','', 1)
-                    #    pass
-                    #
-                    #t = xml.etree.ElementTree.fromstring(m)
-                    #t.set("from", self.ident())
-                    #a = xml.etree.ElementTree.tostring(t).decode("utf-8")
-                    #
-                    #utils.dprint(a)
-                    #sess.send(a)
                     return
                 
                 pass
