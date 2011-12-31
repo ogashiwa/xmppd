@@ -28,9 +28,15 @@
 
 import threading, re, socket, time, subprocess, xml
 import xmpp, xmpp.stream, xmpp.auth
-import xmpp.msgin as msgin
 import xmpp.utils as utils
 from xmpp.msg import xmsg as xm
+
+def splitjid(jid):
+    r = re.search(r'(?ms)([^@]+)@([^/]+)/(.+)',jid)
+    if r is not None: return (r.group(1),r.group(2),r.group(3))
+    r = re.search(r'(?ms)([^@]+)@([^/]+)',jid)
+    if r is not None: return (r.group(1),r.group(2),'')
+    return ('',jid,'')
 
 class session:
     
@@ -172,7 +178,7 @@ class session:
         utils.dprint(x.e.tag)
         if 'to' in x.e.attrib:
             utils.dprint(x.e.attrib['to'])
-            (uname, sname, rname) = msgin.splitjid(x.e.attrib['to'])
+            (uname, sname, rname) = splitjid(x.e.attrib['to'])
             utils.dprint((uname, sname, rname))
             for sess in self.manager.sessmanager.sessionlist:
                 fw = False
@@ -346,7 +352,7 @@ class sessmanager:
         if ('to' in x.e.attrib) == False:
             self.pendingmsg.remove((s,m,t,stat))
             return
-        (uname, sname, rname) = msgin.splitjid(x.e.attrib['to'])
+        (uname, sname, rname) = splitjid(x.e.attrib['to'])
         try: host = self.srvrec(sname)
         except:
             self.pendingmsg.remove((s,m,t,stat))

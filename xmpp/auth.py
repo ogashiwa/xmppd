@@ -28,9 +28,51 @@
 
 import hashlib, binascii, base64
 import xmpp.utils as utils
-import xmpp.msgin as msgin
-import xmpp.msgout as msgout
+from xmpp.msg import xmsg as xm
+#import xmpp.msgin as msgin
+#import xmpp.msgout as msgout
 import xmpp.ns as ns
+
+def sthdr(afrom='', type='', msgid='', xmlnsdb='', msgto=''):
+    tst = Element(ns.TAG_STST)
+    tst.set(ns.ATRBT_VER, "1.0")
+    if msgid!='no': tst.set(ns.ATRBT_ID, randstr(8))
+    tst.set(ns.ATRBT_FROM, afrom)
+    if msgto!='':tst.set(ns.ATRBT_TO, msgto)
+    tst.set(ns.XMLNS, type)
+    tst.set(ns.XMLNS_STREAM, ns.HTTP_ETHERX)
+    if xmlnsdb != '': tst.set('xmlns:db', "jabber:server:dialback")
+    tdummy = SubElement(tst, "DUMMY")
+    rough_string = tostring(tst, 'utf-8')
+    reparsed = parseString(rough_string)
+    fullxml = reparsed.toprettyxml(indent="")
+    return fullxml[0:fullxml.find("<DUMMY")-1]
+
+def md5ch1(h, r, n):
+    chal = 'realm="{R}",nonce="{N}",qop="auth",charset=utf-8,algorithm=md5-sess'
+    chal = chal.format(R=r, N=n)
+    chal = chal.encode("cp932")
+    b64str = binascii.b2a_base64(chal).decode("utf-8")
+    b64str = b64str.replace('\n', '')
+    m = xm(h,tag=ns.TAG_CHLNG,attrib={ns.XMLNS:ns.XMPP_SASL},text=b64str)
+    return m.tostring()
+
+def success(sthdr, rspauth=''):
+    ratext = ''
+    if rspauth != '':
+        chal = ('rspauth={R}'.format(R=rspauth)).encode("cp932")
+        b64str = binascii.b2a_base64(chal).decode("utf-8")
+        ratext = b64str.replace('\n', '')
+        pass
+    m = xm(sthdr,tag=ns.TAG_SUCC,attrib={ns.XMLNS:ns.XMPP_SASL},text=ratext)
+    return m.tostring()
+
+def failure(sthdr):
+    m = xm(sthdr,
+             tag=ns.TAG_FAIL,
+             attrib={ns.XMLNS:ns.XMPP_SASL},
+           sub=[xm(sthdr,"temporary-auth-failure")])
+    return m.tostring()+"</stream:stream>"
 
 class MechDigestMD5:
     def HHD(self,n): return hashlib.md5(n).hexdigest()
@@ -75,7 +117,7 @@ class MechDigestMD5:
         pass
     def proc(self, m):
         if self.state == self.STATE_INIT:
-            m = msgout.md5ch1(self.manager.sendsthdr,self.realm, self.nonce)
+            m = md5ch1(self.manager.sendsthdr,self.realm, self.nonce)
             self.manager.CBF_SendFunc(m)
             self.state = self.STATE_CHALLENGE
             pass
@@ -101,14 +143,14 @@ class MechDigestMD5:
             if authresult == True:
                 ra = self.GetDigestMD5Str(username, password,
                                           realm, nonce, cnonce, nc, uri, qop, 2)
-                m = msgout.success(self.manager.sendsthdr,ra)
+                m = success(self.manager.sendsthdr,ra)
                 self.manager.CBF_SendFunc(m)
                 self.state = self.STATE_CHALLENGEOK
                 self.manager.authenticated = True
                 self.manager.CBF_AuthenticatedFunc(True)
                 pass
             else:
-                m = msgout.failure(self.manager.sendsthdr)
+                m = failure(self.manager.sendsthdr)
                 self.manager.CBF_SendFunc(m)
                 self.manager.authenticated = False
                 self.manager.CBF_AuthenticatedFunc(False)
@@ -127,14 +169,14 @@ class MechPlain:
         u = p.username
         pw = p.password
         if pw == self.manager.CBF_GetPasswordFunc(u):
-            m = msgout.success(self.manager.sendsthdr)
+            m = success(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = True
             self.manager.CBF_SendFunc(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
             self.manager.CBF_AuthenticatedFunc(True)
             pass
         else:
-            m = msgout.failure(self.manager.sendsthdr)
+            m = failure(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = False
             self.manager.CBF_AuthenticatedFunc(False)
