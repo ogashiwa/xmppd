@@ -26,27 +26,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import hashlib, binascii, base64
+import hashlib, binascii, base64, re
 import xmpp.utils as utils
-from xmpp.msg import xmsg as xm
-#import xmpp.msgin as msgin
-#import xmpp.msgout as msgout
 import xmpp.ns as ns
-
-def sthdr(afrom='', type='', msgid='', xmlnsdb='', msgto=''):
-    tst = Element(ns.TAG_STST)
-    tst.set(ns.ATRBT_VER, "1.0")
-    if msgid!='no': tst.set(ns.ATRBT_ID, randstr(8))
-    tst.set(ns.ATRBT_FROM, afrom)
-    if msgto!='':tst.set(ns.ATRBT_TO, msgto)
-    tst.set(ns.XMLNS, type)
-    tst.set(ns.XMLNS_STREAM, ns.HTTP_ETHERX)
-    if xmlnsdb != '': tst.set('xmlns:db', "jabber:server:dialback")
-    tdummy = SubElement(tst, "DUMMY")
-    rough_string = tostring(tst, 'utf-8')
-    reparsed = parseString(rough_string)
-    fullxml = reparsed.toprettyxml(indent="")
-    return fullxml[0:fullxml.find("<DUMMY")-1]
+from xmpp.msg import xmsg as xm
 
 def md5ch1(h, r, n):
     chal = 'realm="{R}",nonce="{N}",qop="auth",charset=utf-8,algorithm=md5-sess'
@@ -115,6 +98,30 @@ class MechDigestMD5:
         self.STATE_CHALLENGEOK  = 2
         self.state = 0
         pass
+    
+    def response(self,data):
+        userinfo={}
+        b64str = str(data)
+        binstr = base64.b64decode(b64str.encode("cp932"))
+        utils.dprint(binstr)
+        tmpstr = ''
+        for i in range(0,len(binstr)):
+            tmpstr = tmpstr + chr(binstr[i])
+            pass
+        while len(tmpstr) is not 0:
+            if tmpstr[0] == ',': tmpstr = tmpstr[1:]
+            result = re.search(r'(?ms)([^=,]+)=([^,]+)(.*)',tmpstr)
+            if result is None: tmpstr = ""
+            else:
+                v = result.group(2)
+                if v[0] == '"': v = v[1:]
+                if v[len(v)-1] == '"': v = v[:len(v)-1]
+                userinfo[result.group(1)] = v
+                tmpstr = result.group(3)
+                pass
+            pass
+        return userinfo
+                
     def proc(self, m):
         if self.state == self.STATE_INIT:
             m = md5ch1(self.manager.sendsthdr,self.realm, self.nonce)
@@ -122,18 +129,20 @@ class MechDigestMD5:
             self.state = self.STATE_CHALLENGE
             pass
         elif self.state == self.STATE_CHALLENGE:
-            p = msgin.response(m)
-            self.manager.username = p.userinfo["username"]
-            u = p.userinfo["username"]
+            x=xm(self.manager.recvsthdr)
+            x.fromstring(m)
+            userinfo = self.response(x.e.text)
+            self.manager.username = userinfo["username"]
+            u = userinfo["username"]
             username = u
             password = self.manager.CBF_GetPasswordFunc(u)
             realm = self.realm
             nonce = self.nonce
-            cnonce = p.userinfo["cnonce"]
-            nc = p.userinfo["nc"]
-            uri = p.userinfo["digest-uri"]
-            qop = p.userinfo["qop"]
-            response = p.userinfo["response"]
+            cnonce = userinfo["cnonce"]
+            nc = userinfo["nc"]
+            uri = userinfo["digest-uri"]
+            qop = userinfo["qop"]
+            response = userinfo["response"]
             chkreshex = self.GetDigestMD5Str(username, password,
                                              realm, nonce, cnonce, nc, uri, qop, 1)
             utils.dprint("RECV: "+response)
@@ -163,16 +172,38 @@ class MechPlain:
     def __init__(self, man):
         self.manager = man
         pass
+    def plainparse(self,data):
+        b64str = str(data)
+        binstr = base64.b64decode(b64str.encode("cp932"))
+        tmpstr = binstr
+        i = 1
+        (username,password)=('','')
+        for i in range(1,len(tmpstr)):
+            if tmpstr[i] == 0: break
+            username = username + chr(tmpstr[i])
+            pass
+        for i in range(i+1,len(tmpstr)):
+            if tmpstr[i] == 0: break
+            password = password + chr(tmpstr[i])
+            pass
+        return (username,password)
+
     def proc(self, m):
-        p = msgin.authplain(m)
-        self.manager.username = p.username
-        u = p.username
-        pw = p.password
-        if pw == self.manager.CBF_GetPasswordFunc(u):
+        x = xm(self.manager.recvsthdr)
+        x.fromstring(m)
+        (self.manager.username,pw)=self.plainparse(x.e.text)
+        if pw == self.manager.CBF_GetPasswordFunc(self.manager.username):
             m = success(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = True
-            self.manager.CBF_SendFunc(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
+            x=xm('')
+            x.create(tag='stream:stream',
+                     attrib={'from':self.manager.servname,
+                             'version':"1.0",
+                             'xmlns':"jabber:client",
+                             'xmlns:stream':"http://etherx.jabber.org/streams",
+                             'xmlns:xml':"http://www.w3.org/XML/1998/namespace"})
+            self.manager.CBF_SendFunc(x.tostring())
             self.manager.CBF_AuthenticatedFunc(True)
             pass
         else:
@@ -189,7 +220,7 @@ class MechAnonymous:
         self.manager = man
         pass
     def proc(self, m):
-        m = msgout.success(self.manager.sendsthdr)
+        m = success(self.manager.sendsthdr)
         self.manager.CBF_SendFunc(m)
         self.manager.authenticated = True
         self.manager.CBF_AuthenticatedFunc(True)
@@ -212,14 +243,21 @@ class manager:
         self.recvsthdr = ''
         pass
     def ProcMsgAuthentication(self, m):
-        p = msgin.auth(m)
+        x = xm(self.recvsthdr)
+        x.fromstring(m)
+        mc = x.e.attrib['mechanism']
         if self.mech is None:
-            self.mech = self.mechlist[p.mech].__call__(self)
+            self.mech = self.mechlist[mc].__call__(self)
             self.mech.proc(m)
             pass
         pass
     def proc(self, m):
-        msgtype = msgin.getmsgtype(m)
+        x = xm(self.recvsthdr)
+        x.fromstring(m)
+        msgtype = x.e.tag
+        pos=msgtype.find('}')
+        if pos>0: msgtype = msgtype[pos+1:]
+        utils.dprint(msgtype)
         if self.mech is None: self.ProcMsgAuthentication(m)
         else: self.mech.proc(m)
         pass
