@@ -91,6 +91,7 @@ class session:
         self.CntSMsg += 1
         self.stream.send(m)
         pass
+
     
     def recv(self, stream, m):
         
@@ -99,6 +100,10 @@ class session:
         
         x = xm(self.RcvdHeader)
         x.fromstring(m)
+
+        # ============================================================
+        # receive stream header
+        # ============================================================
         
         if x.e.tag=='{http://etherx.jabber.org/streams}stream':
             
@@ -174,31 +179,57 @@ class session:
                 if self.servauth: self.send(nx.tostring())
                 pass
             return
-        
+
+        # ============================================================
+        # msg forward check
+        # ============================================================
+
         utils.dprint(x.e.tag)
+        
         if 'to' in x.e.attrib:
             utils.dprint(x.e.attrib['to'])
             (uname, sname, rname) = splitjid(x.e.attrib['to'])
             utils.dprint((uname, sname, rname))
+            
             for sess in self.manager.sessmanager.sessionlist:
                 fw = False
+                if sess==self: continue
+                
                 if x.e.attrib['to']==sess.ident(): fw = True
                 elif sname==sess.ident(): fw = True
+                
                 if fw==True:
                     utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
-                    if m.find(' xmlns="jabber:client"')>0: m=m.replace(' xmlns="jabber:client"','', 1)
-                    t = xml.etree.ElementTree.fromstring(m)
-                    t.set("from", self.ident())
-                    a = xml.etree.ElementTree.tostring(t).decode("utf-8")
-                    utils.dprint(a)
-                    sess.send(a)
+                    nx = xm(sess.SentHeader)
+                    att = {'from':self.ident(), 'to':x.e.attrib['to']}
+                    if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
+                    if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
+                    nx.create(tag=x.e.tag, attrib=att, subet=x.e.findall('*'))
+                    sess.send(nx.tostring())
+                    #if m.find(' xmlns="jabber:client"')>0:
+                    #    m=m.replace(' xmlns="jabber:client"','', 1)
+                    #    pass
+                    #
+                    #t = xml.etree.ElementTree.fromstring(m)
+                    #t.set("from", self.ident())
+                    #a = xml.etree.ElementTree.tostring(t).decode("utf-8")
+                    #
+                    #utils.dprint(a)
+                    #sess.send(a)
                     return
+                
                 pass
+            
             if sname!=self.manager.servname:
                 self.manager.sessmanager.pendingmsg.append((self,m,int(time.time()),'init'))
                 return
+            
             pass
         
+        # ============================================================
+        # in case of client connection
+        # ============================================================
+
         if self.Type=='Client':
             
             if x.e.tag=='{urn:ietf:params:xml:ns:xmpp-sasl}auth' or \
@@ -259,12 +290,20 @@ class session:
                 pass
             
             pass
+
+        # ============================================================
+        # in case of component connection
+        # ============================================================
         
         elif self.Type=='Component':
             if x.e.tag=='{jabber:component:accept}handshare':
                 utils.dprint(m)
                 return
             pass
+        
+        # ============================================================
+        # in case of server connection
+        # ============================================================
         
         elif self.Type=='Server':
             
@@ -307,9 +346,12 @@ class session:
                     return
                 return
             pass
-        
-        else:
-            return
+
+        # ============================================================
+        # error
+        # ============================================================
+
+        else: self.stream.close()
         pass
     
     pass

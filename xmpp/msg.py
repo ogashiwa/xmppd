@@ -75,6 +75,15 @@ class xmsg:
             s = "<?xml version='1.0'?>"+s
             pass
         return s
+
+    def _reg(self):
+        try:
+            for i in {'jabber:client','jabber:server','jabber:component:accept'}:
+                if self.header.find(i)>0:ET.register_namespace('', i)
+                pass
+            pass
+        except: pass
+        pass
     
     def __init__(self, header, tag='', attrib={}, text='', sub=[]):
         _register_namespace()
@@ -85,6 +94,7 @@ class xmsg:
     
     def fromstring(self,m):
         try:
+            self._reg()
             self.e = ET.fromstring(self.header + m + self.tailer)
             child = self.e.find('*')
             if child != None: self.e = child
@@ -96,15 +106,18 @@ class xmsg:
         pass
     
     def tostring(self):
+        self._reg()
         s = ET.tostring(self.e).decode('utf-8')
         s = self._mkstreamtag(s)
         return s
     
-    def create(self, tag='', attrib={}, text='', sub=[]):
+    def create(self, tag='', attrib={}, text='', sub=[], subet=[]):
+        self._reg()
         nt = ET.Element(tag)
         nt.text = text
         for k,v in attrib.items(): nt.set(k,v)
         for ee in sub: nt.append(ee.e)
+        for ee in subet: nt.append(ee)
         self.e = nt
         pass
     
