@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import sys
 import xml
 from xml.etree import ElementTree as ET
 
@@ -59,7 +60,7 @@ _register_namespace_finished = False
 def _register_namespace():
     global _register_namespace_finished
     if _register_namespace_finished == False:
-        ET.register_namespace('', 'jabber:server')
+        ET.register_namespace('', 'jabber:client')
         ET.register_namespace('db', 'jabber:server:dialback')
         ET.register_namespace('stream', 'http://etherx.jabber.org/streams')
         pass
@@ -67,7 +68,6 @@ def _register_namespace():
     pass
 
 class xmsg:
-    
     def _mkstreamtag(self,s):
         if s.find("<stream:stream ")!=-1:
             if s.find("</stream:stream>")!=-1: s=s.replace("</stream:stream>","")
@@ -76,7 +76,7 @@ class xmsg:
             pass
         return s
     
-    def __init__(self,header, tag='', attrib={}, text='', sub=[]):
+    def __init__(self, header, tag='', attrib={}, text='', sub=[]):
         _register_namespace()
         (self.header, self.tailer) = (header, '</stream:stream>')
         self.e = None
@@ -84,8 +84,15 @@ class xmsg:
         pass
     
     def fromstring(self,m):
-        tmp = ET.fromstring(self.header + m + self.tailer)
-        self.e = tmp.find('*')
+        try:
+            self.e = ET.fromstring(self.header + m + self.tailer)
+            child = self.e.find('*')
+            if child != None: self.e = child
+            pass
+        except:
+            print("Unexpected error:", sys.exc_info())
+            print(m)
+            pass
         pass
     
     def tostring(self):
@@ -97,7 +104,7 @@ class xmsg:
         nt = ET.Element(tag)
         nt.text = text
         for k,v in attrib.items(): nt.set(k,v)
-        for ee in sub: nt.append(ee)
+        for ee in sub: nt.append(ee.e)
         self.e = nt
         pass
     

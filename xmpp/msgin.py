@@ -61,7 +61,7 @@ def splitjid(jid):
     if r is not None: return (r.group(1),r.group(2),r.group(3))
     r = re.search(r'(?ms)([^@]+)@([^/]+)',jid)
     if r is not None: return (r.group(1),r.group(2),'')
-    return (jid,'','')
+    return ('',jid,'')
 
 class parser:
     def __init__(self):

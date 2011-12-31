@@ -42,6 +42,7 @@ class stream(threading.Thread):
         self.CBF_recv = self.nf
         self.CBF_closed = self.nf
         self.socket = None
+        self.peeraddr = None
         self._binbuf = bytearray()
         self._utfbuf = ""
         self._SendQueue = queue.Queue()
@@ -79,7 +80,7 @@ class stream(threading.Thread):
             if self.ready == False: return
             while self._SendQueue.empty() is False:
                 b = self._SendQueue.get()
-                utils.dprint("S:"+b)
+                utils.dprint("S:"+str(self.peeraddr)+": "+b)
                 self.socket.send(b.encode("cp932"))
                 pass
             pass
@@ -99,19 +100,19 @@ class stream(threading.Thread):
     def _getxmlblock(self, s):
         res = re.search(r'(?ms)[^<]*(<\?xml[^>]+\?>)(.*)',str(s))
         if res:
-            utils.dprint("R:"+res.group(1))
+            utils.dprint("R:"+str(self.peeraddr)+": "+res.group(1))
             s = res.group(2)
             pass
         res = re.search(r'(?ms)[^<]*(<stream:stream[^>]+>)(.*)',str(s))
         if res:
-            utils.dprint("R:"+res.group(1))
+            utils.dprint("R:"+str(self.peeraddr)+": "+res.group(1))
             s = res.group(2)
             self.CBF_recv(self,res.group(1))
         while True:
             spl = msg.xmlblock(s)
             (blk, s) = spl.get()
             if len(blk) > 0:
-                utils.dprint("R:"+blk)
+                utils.dprint("R:"+str(self.peeraddr)+": "+blk)
                 self.CBF_recv(self,blk)
             else: break
             pass

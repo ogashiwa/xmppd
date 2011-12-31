@@ -105,11 +105,13 @@ class MechDigestMD5:
                 self.manager.CBF_SendFunc(m)
                 self.state = self.STATE_CHALLENGEOK
                 self.manager.authenticated = True
+                self.manager.CBF_AuthenticatedFunc(True)
                 pass
             else:
                 m = msgout.failure(self.manager.sendsthdr)
                 self.manager.CBF_SendFunc(m)
                 self.manager.authenticated = False
+                self.manager.CBF_AuthenticatedFunc(False)
                 pass
             pass
         pass
@@ -129,11 +131,13 @@ class MechPlain:
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = True
             self.manager.CBF_SendFunc(msgout.sthdr(self.manager.servname, ns.JABBER_CLIENT))
+            self.manager.CBF_AuthenticatedFunc(True)
             pass
         else:
             m = msgout.failure(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = False
+            self.manager.CBF_AuthenticatedFunc(False)
             pass
         pass
     pass
@@ -146,16 +150,18 @@ class MechAnonymous:
         m = msgout.success(self.manager.sendsthdr)
         self.manager.CBF_SendFunc(m)
         self.manager.authenticated = True
+        self.manager.CBF_AuthenticatedFunc(True)
         pass
     pass
 
 class manager:
-    def __init__(self, servname, SendFunc, GetPasswordFunc):
+    def __init__(self, servname, SendFunc, GetPasswordFunc, AuthenticatedFunc):
         self.mechlist = {ns.AUTH_MD5:MechDigestMD5,
                          ns.AUTH_PLAIN:MechPlain,
                          ns.AUTH_ANON:MechAnonymous}
         self.CBF_SendFunc = SendFunc
         self.CBF_GetPasswordFunc = GetPasswordFunc
+        self.CBF_AuthenticatedFunc = AuthenticatedFunc
         self.servname = servname
         self.username = ""
         self.authenticated = False

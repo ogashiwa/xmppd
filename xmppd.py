@@ -28,67 +28,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import datetime
-import sys, socket, threading, time, getopt, re
-import xmpp.stream, xmpp.msgin, xmpp.msgout, xmpp.auth, xmpp.utils
-import xmpp.ns as ns
-import xmpp.msgin as msgin
-import xmpp.msgout as msgout
-import server.manager
-#import os
-#from os import fork, chdir, setsid, umask
-#from sys import exit
+import getopt, sys
+import xmpp.utils, server.manager
 
-def usage(): print("xmppd [-c <FILENAME>|--config-file=<FILENAME>] "
-                   "[-h|--help] [-v|--version]")
+version='0.0.7'
 
-#def daemonize():
-#    try:
-#        pid = fork()
-#        if pid > 0: exit(0)
-#        pass
-#    except:
-#        exit(1)
-#        pass
-#    chdir("/")
-#    setsid()
-#    umask(0)
-#    try:
-#        pid = fork()
-#        if pid > 0:
-#            exit(0)
-#            pass
-#        pass
-#    except:
-#        exit(1)
-#        pass
-#    
-#    import resource
-#    MAXFD = 1024
-#    maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-#    if (maxfd == resource.RLIM_INFINITY):
-#        maxfd = MAXFD
-#        pass
-#    for fd in range(0, maxfd):
-#        try:
-#            os.close(fd)
-#        except OSError:	# ERROR, fd wasn't open to begin with (ignored)
-#            pass
-#        pass
-#    os.open(REDIRECT_TO, os.O_RDWR)	# standard input (0)
-#    os.dup2(0, 1)			# standard output (1)
-#    os.dup2(0, 2)			# standard error (2)
-#    pass
+def usage(): print("xmppd "
+                   "[-c <FILENAME>|--config-file=<FILENAME>] "
+                   "[-h|--help] "
+                   "[-v|--version]"
+                   "[-D|--debug]")
 
 def main():
+    global version
+
     xmpp.utils.debug(False)
     conffile = "xmppd.conf"
     
     try:
         opts, args = getopt.getopt(sys.argv[1:],
-                                   "c:hvdD",
-                                   ["config-file=", "help", "version",
-                                    "daemonize", "debug"])
+                                   "c:hvD",
+                                   ["config-file=",
+                                    "help",
+                                    "version",
+                                    "debug"])
+                                    
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -100,27 +64,21 @@ def main():
             sys.exit()
             pass
         if o in ("-v", "--version"):
-            print("xmppd: version 0.0.7")
+            print("xmppd: version " + version)
             sys.exit()
             pass
         if o in ("-D", "--debug"):
             xmpp.utils.debug(True)
             pass
-        if o in ("-d", "--daemonize"):
-            daemonize()
-            pass
         if o in ("-c", "--config-file"):
             conffile = a
             pass
         pass
-
-    
     
     try:
         m = server.manager.manager()
         m.conffile = conffile
         m.start()
-        
     except: print("Unexpected error:", sys.exc_info())
     pass
 
