@@ -93,6 +93,36 @@ class session:
         self.stream.send(m)
         pass
 
+    def forward(self,sess,m):
+        x = xm(self.RcvdHeader)
+        x.fromstring(m)
+        utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
+        inttag = ''
+        posa = m.find('>')
+        posb = m.rfind('<')
+        inttag = m[posa+1:posb]
+        utils.dprint(inttag)
+        att={'to':x.e.attrib['to']}
+        if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
+        else: att['from']=self.ident()
+        if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
+        if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
+        atstr = ''
+        for k,v in att.items():
+            tmpstr = ' {N}="{VAL}" '.format(N=k,VAL=v)
+            atstr += tmpstr
+            utils.dprint(atstr)
+            pass
+        nt='iq'
+        if x.e.tag.find('}message')>0: nt='message'
+        elif x.e.tag.find('}iq')>0: nt='iq'
+        elif x.e.tag.find('}presence')>0: nt='presence'
+        newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
+        nx=xm(sess.SentHeader)
+        nx.fromstring(newmsg)
+        utils.dprint(nx.tostring())
+        sess.send(nx.tostring())
+        pass
     
     def recv(self, stream, m):
         
@@ -174,10 +204,12 @@ class session:
 
             if self.Type=='Server':
                 nx = xm(self.SentHeader)
-                nx.create(tag='stream:features',sub=[xm(self.SentHeader,tag='dialback',
-                                                        attrib={'xmlns':'urn:xmpp:features:dialback'},
-                                                        sub=[xm(self.SentHeader,tag='optional')])])
+                nx.create(tag='stream:features',
+                          sub=[xm(self.SentHeader,tag='dialback',
+                                  attrib={'xmlns':'urn:xmpp:features:dialback'},
+                                  sub=[xm(self.SentHeader,tag='optional')])])
                 if self.servauth: self.send(nx.tostring())
+                #self.send(nx.tostring())
                 pass
             return
 
@@ -200,36 +232,8 @@ class session:
                 elif sname==sess.ident(): fw = True
                 
                 if fw==True:
-                    utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
-                    inttag = ''
-                    posa = m.find('>')
-                    posb = m.rfind('<')
-                    inttag = m[posa+1:posb]
-                    utils.dprint(inttag)
-                    att={'to':x.e.attrib['to']}
-                    if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
-                    else: att['from']=self.ident()
-                    if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
-                    if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
-                    atstr = ''
-                    for k,v in att.items():
-                        tmpstr = ' {N}="{VAL}" '.format(N=k,VAL=v)
-                        atstr += tmpstr
-                        utils.dprint(atstr)
-                        pass
-                    nt='iq'
-                    if x.e.tag.find('}message')>0: nt='message'
-                    elif x.e.tag.find('}iq')>0: nt='iq'
-                    elif x.e.tag.find('}presence')>0: nt='presence'
-                    
-                    newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
-                    
-                    nx=xm(sess.SentHeader)
-                    nx.fromstring(newmsg)
-                    utils.dprint(nx.tostring())
-                    sess.send(nx.tostring())
-                    return
-                
+                    self.forward(sess,m)
+                    return                
                 pass
             
             if sname!=self.manager.servname:
@@ -332,6 +336,7 @@ class session:
                 return
 
             if x.e.tag=='{jabber:server:dialback}verify':
+                                
                 nx = xm(self.SentHeader,tag='db:verify',
                         attrib={'xmlns:db':'jabber:server:dialback',
                                 'from':x.e.attrib['to'],
@@ -349,6 +354,34 @@ class session:
                     else: self.stream.close()
                     return
                 else:
+                    serv = x.e.attrib['from']
+                    host = self.manager.sessmanager.srvrec(serv)
+                    s = socket.create_connection((host, 5269), 5)
+                    s.settimeout(None)
+                    nx1 = xm('',tag='stream:stream',
+                             attrib={'xmlns':'jabber:server',
+                                     'xmlns:db':'jabber:server:dialback',
+                                     'xmlns:stream':'http://etherx.jabber.org/streams',
+                                     'xmlns:xml':"http://www.w3.org/XML/1998/namespace",
+                                     'version':'1.0',
+                                     'to':serv,
+                                     'from':self.manager.servname})
+                    sth = nx1.tostring()
+                    s.send(sth.encode('cp932'))
+                    utils.dprint(sth.encode('cp932'))
+                    rmsg = s.recv(1024*1024)
+                    utils.dprint(rmsg)
+                    nx2 = xm(sth,tag='db:verify',
+                             attrib={'from':self.manager.servname,
+                                     'to':serv,
+                                     'id':utils.randstr(16)},
+                             text=x.e.text)
+                    s.send(nx2.tostring().encode('cp932'))
+                    utils.dprint(nx2.tostring().encode('cp932'))
+                    rmsg = s.recv(1024*1024)
+                    utils.dprint(rmsg)
+                    s.send('</stream:stream>'.encode('cp932'))
+                    
                     nx = xm(self.SentHeader,tag='db:result',
                             attrib={'from':x.e.attrib['to'],
                                     'to':x.e.attrib['from'],
@@ -396,11 +429,19 @@ class sessmanager:
         return minsv
     
     def pendmsgcheck(self):
+        
+        # if pending message doesn't exist
         if len(self.pendingmsg)==0: return
+
+        # obtain a pending message
         (s,m,t,stat) = self.pendingmsg[0]
-        if t<int(time.time()-5):
+
+        # if its a too old message, discard it
+        if t<int(time.time()-30):
             self.pendingmsg.remove((s,m,t,stat))
             return
+
+        # obtain servname and to-connect-hostname
         x = xm(s.RcvdHeader)
         x.fromstring(m)
         if ('to' in x.e.attrib) == False:
@@ -411,6 +452,16 @@ class sessmanager:
         except:
             self.pendingmsg.remove((s,m,t,stat))
             return
+
+        # if already have connection, send it
+        for ses in self.sessionlist:
+            if ses.ident()==sname:
+                s.forward(ses,m)
+                self.pendingmsg.remove((s,m,t,stat))
+                return
+            pass
+        
+        # if not yet connected
         if stat=='init':
             pa = (host,5269)
             try: ps = socket.create_connection(pa, 5)
@@ -429,9 +480,12 @@ class sessmanager:
                  'to':sname}
             nx.create(tag='stream:stream', attrib=a)
             self.addsocket(ps,pa,nx.tostring(),sname)
+            
             try: self.pendingmsg.append((s,m,t,'connecting'))
             except: pass
+            
             pass
+        
         pass
     
     def timercheck(self):
@@ -607,7 +661,7 @@ class manager:
     def accept(self, ps, pa):
         self.sessmanager.addsocket(ps, pa)
         pass
-    
+
     def start(self):
         
         self.confmanager.read(self.conffile)
