@@ -29,6 +29,10 @@
 XMLNS = 'xmlns'
 XMLNS_STREAM = 'xmlns:stream'
 
+TYPE_C='Client'
+TYPE_M='Component'
+TYPE_S='Server'
+
 XMPP_STREAMS  = 'urn:ietf:params:xml:ns:xmpp-streams'
 XMPP_TLS      = 'urn:ietf:params:xml:ns:xmpp-tls'
 XMPP_SASL     = 'urn:ietf:params:xml:ns:xmpp-sasl'

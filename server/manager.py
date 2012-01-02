@@ -27,10 +27,19 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys, threading, re, socket, time, subprocess, xml, random
+import hashlib
 import xmpp, xmpp.stream, xmpp.auth
 import xmpp.utils as utils
+import xmpp.ns as ns
 from xml.etree import ElementTree as ET
 from xmpp.msg import xmsg as xm
+
+def create_key(secret, rserv, oserv, streamid):
+    s1 = hashlib.sha256(secret.encode('cp932')).hexdigest()
+    s2 = rserv + ' ' + oserv + ' ' + streamid
+    s3 = s1+s2
+    s4 = hashlib.sha256(s3.encode('cp932')).hexdigest()
+    return s4
 
 def splitjid(jid):
     r = re.search(r'(?ms)([^@]+)@([^/]+)/(.+)',jid)
@@ -58,6 +67,7 @@ class session:
         self.TmRmsg = int(time.time())
         self.CntSMsg = 0
         self.CntRMsg = 0
+        self.streamid = 0
         pass
 
     def fulljid(self):
@@ -67,9 +77,9 @@ class session:
         return self.username + "@" + self.manager.servname
 
     def ident(self):
-        if self.Type=='Client': return self.fulljid()
-        if self.Type=='Component': return self.peername
-        if self.Type=='Server': return self.peername
+        if self.Type==ns.TYPE_C: return self.fulljid()
+        if self.Type==ns.TYPE_M: return self.peername
+        if self.Type==ns.TYPE_S: return self.peername
         return ''
     
     def authenticated(self,result):
@@ -165,7 +175,7 @@ class session:
             
             
             if m.find('jabber:client')>0:
-                self.Type='Client'
+                self.Type=ns.TYPE_C
                 a['xmlns'] = 'jabber:client'
                 a['from'] = self.manager.servname
                 nx.create(tag='stream:stream', attrib=a)
@@ -173,7 +183,7 @@ class session:
                 pass
             
             elif m.find('jabber:component:accept')>0:
-                self.Type='Component'
+                self.Type=ns.TYPE_M
                 a['xmlns'] = 'jabber:component:accept'
                 a['id'] = utils.randstr(8)
                 a['from'] = self.manager.servname
@@ -181,12 +191,13 @@ class session:
                 pass
 
             elif m.find('jabber:server')>0:
-                self.Type='Server'
+                self.Type=ns.TYPE_S
                 if 'from' in x.e.attrib: self.peername = x.e.attrib['from']
                 a['xmlns'] = 'jabber:server'
                 a['xmlns:db']='jabber:server:dialback'
                 if self.peername!='': a['to'] = self.peername
-                a['id'] = utils.randstr(16)
+                self.streamid = utils.randstr(16)
+                a['id'] = self.streamid
                 nx.create(tag='stream:stream', attrib=a)
                 pass
             
@@ -199,7 +210,7 @@ class session:
                 self.send(self.SentHeader)
                 pass
             
-            if self.Type=='Client':
+            if self.Type==ns.TYPE_C:
                 mec = xm(self.SentHeader)
                 mec.create(tag='mechanisms',attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-sasl'},
                            sub=[xm(self.SentHeader,tag='mechanism',text='PLAIN'),
@@ -219,14 +230,15 @@ class session:
                 self.send(nx.tostring())
                 pass
 
-            if self.Type=='Component':
+            if self.Type==ns.TYPE_M:
                 self.peername = x.e.attrib['from']
                 pass
 
-            if self.Type=='Server':
+            if self.Type==ns.TYPE_S:
                 
                 if self.activeopen:
-                    key='1e701f120f66824b57303384e83b51feba858024fd2221d39f7acc52dcf767a9'
+                    key=create_key(utils.randstr(16),self.manager.servname,self.peername,
+                                   self.streamid)
                     nx = xm(self.SentHeader,tag='db:result',
                             attrib={'from':self.manager.servname,'to':self.peername},
                             text=key)
@@ -252,10 +264,11 @@ class session:
                 if sess==self: continue
                 
                 if x.e.attrib['to']==sess.ident(): fw = True
+                elif sess.Type==ns.TYPE_C and x.e.attrib['to']==sess.barejid(): fw = True
                 elif sname==sess.ident(): fw = True
                 
                 if fw==True:
-                    if sess.Type == 'Server':
+                    if sess.Type == ns.TYPE_S:
                         if sess.ident()==sname and sess.authorized and sess.activeopen==True:
                             self.forward(sess,m)
                             pass
@@ -275,7 +288,7 @@ class session:
         # in case of client connection
         # ============================================================
 
-        if self.Type=='Client':
+        if self.Type==ns.TYPE_C:
             
             if x.e.tag=='{urn:ietf:params:xml:ns:xmpp-sasl}auth' or \
                    x.e.tag=='{urn:ietf:params:xml:ns:xmpp-sasl}response':
@@ -341,7 +354,7 @@ class session:
         # in case of component connection
         # ============================================================
         
-        elif self.Type=='Component':
+        elif self.Type==ns.TYPE_M:
             if x.e.tag=='{jabber:component:accept}handshare':
                 utils.dprint(m)
                 return
@@ -351,7 +364,7 @@ class session:
         # in case of server connection
         # ============================================================
         
-        elif self.Type=='Server':
+        elif self.Type==ns.TYPE_S:
             
             if x.e.tag=='{jabber:server:dialback}verify':
                 
@@ -495,7 +508,7 @@ class sessmanager:
                 ses.TmPing = int(time.time())
                 pass
             if ses.TmRmsg+180<int(time.time()):
-                if ses.Type=='Server': ses.TmRmsg=int(time.time())
+                if ses.Type==ns.TYPE_S: ses.TmRmsg=int(time.time())
                 else: ses.stream.close()
                 pass
             pass
