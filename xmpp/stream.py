@@ -41,6 +41,7 @@ class stream(threading.Thread):
         self.StateRecvStHdr = False
         self.CBF_recv = self.nf
         self.CBF_closed = self.nf
+        self.CBF_pong = self.nf
         self.socket = None
         self.peeraddr = None
         self._binbuf = bytearray()
@@ -55,6 +56,7 @@ class stream(threading.Thread):
                 self.send("")
                 r = self.socket.recv(1*1024*1024)
                 if len(r) is 0: break
+                self.CBF_pong(self,"")
                 self._binbuf += r
                 ubuf = self._binbuf
                 try: ubuf = ubuf.decode('utf-8')

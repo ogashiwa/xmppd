@@ -152,6 +152,11 @@ class session:
             self.stream.close()
             pass
         pass
+
+    def recv_pong(self, stream, m):
+        utils.dprint("pong")
+        self.TmRmsg = int(time.time())
+        pass
     
     def recv_internal(self, stream, m):
         
@@ -496,7 +501,7 @@ class sessmanager:
     
     def timercheck(self):
         for ses in self.sessionlist:
-            if ses.TmPing+30<int(time.time()):
+            if ses.TmPing+60<int(time.time()):
                 ses.stream.ping()
                 a={'from':self.manager.servname,
                    'id':utils.randstr(8),
@@ -507,7 +512,7 @@ class sessmanager:
                 ses.send(nx.tostring())
                 ses.TmPing = int(time.time())
                 pass
-            if ses.TmRmsg+180<int(time.time()):
+            if ses.TmRmsg+(180*3)<int(time.time()):
                 if ses.Type==ns.TYPE_S: ses.TmRmsg=int(time.time())
                 else: ses.stream.close()
                 pass
@@ -545,6 +550,7 @@ class sessmanager:
         ses.stream = xmpp.stream.stream()
         ses.stream.CBF_recv = ses.recv
         ses.stream.CBF_closed = self.closed
+        ses.stream.CBF_pong = ses.recv_pong
         ses.stream.peeraddr = peeraddr
         ses.stream.socket = peersock
         ses.stream.start()
@@ -562,6 +568,7 @@ class sessmanager:
             ses.stream = xmpp.stream.stream()
             ses.stream.CBF_recv = ses.recv
             ses.stream.CBF_closed = self.closed
+            ses.stream.CBF_pong = ses.recv_pong
             ses.stream.peeraddr = peeraddr
             ses.stream.socket = peersock
             nx = xm('')
