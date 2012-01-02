@@ -137,7 +137,8 @@ class session:
         nx=xm(sess.SentHeader)
         nx.fromstring(newmsg)
         
-        pmsg='<presence from="{F}" to="{T}" type="subscribed" /><presence from="{F}" to="{T}" />'
+        pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
+              '<presence from="{F}" to="{T}" />'
         pmsg=pmsg.format(F=att['from'],T=att['to'])
 
         sess.send(pmsg)
@@ -217,15 +218,18 @@ class session:
             
             if self.Type==ns.TYPE_C:
                 mec = xm(self.SentHeader)
-                mec.create(tag='mechanisms',attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-sasl'},
+                mec.create(tag='mechanisms',
+                           attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-sasl'},
                            sub=[xm(self.SentHeader,tag='mechanism',text='PLAIN'),
                                 xm(self.SentHeader,tag='mechanism',text='DIGEST-MD5'),
                                 xm(self.SentHeader,tag='required')])
                 bid = xm(self.SentHeader)
-                bid.create(tag='bind',attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-bind'},
+                bid.create(tag='bind',
+                           attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-bind'},
                            sub=[xm(self.SentHeader,tag='required')])
                 stg = xm(self.SentHeader)
-                stg.create(tag='session',attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-session'},
+                stg.create(tag='session',
+                           attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-session'},
                            sub=[xm(self.SentHeader,tag='optional')])
                 nx = xm(self.SentHeader)
                 subtag=[]
@@ -242,10 +246,12 @@ class session:
             if self.Type==ns.TYPE_S:
                 
                 if self.activeopen:
-                    key=create_key(utils.randstr(16),self.manager.servname,self.peername,
+                    key=create_key(utils.randstr(16),
+                                   self.manager.servname,self.peername,
                                    self.streamid)
                     nx = xm(self.SentHeader,tag='db:result',
-                            attrib={'from':self.manager.servname,'to':self.peername},
+                            attrib={'from':self.manager.servname,
+                                    'to':self.peername},
                             text=key)
                     self.send(nx.tostring(),force=True)
                     pass
@@ -274,7 +280,9 @@ class session:
                 
                 if fw==True:
                     if sess.Type == ns.TYPE_S:
-                        if sess.ident()==sname and sess.authorized and sess.activeopen==True:
+                        if sess.ident()==sname and \
+                               sess.authorized and \
+                               sess.activeopen==True:
                             self.forward(sess,m)
                             pass
                         pass
@@ -284,7 +292,8 @@ class session:
                 pass
             
             if sname!=self.manager.servname:
-                self.manager.sessmanager.pendingmsg.append((self,m,int(time.time()),'init'))
+                item = (self,m,int(time.time()),'init')
+                self.manager.sessmanager.pendingmsg.append(item)
                 return
             
             pass
@@ -310,22 +319,26 @@ class session:
             
             if x.e.tag=='{jabber:client}iq':
                 
-                ResourceTag='{NS}bind/{NS}resource'.format(NS='{urn:ietf:params:xml:ns:xmpp-bind}')
+                ResourceTag='{NS}bind/{NS}resource'
+                ResourceTag=ResourceTag.format(NS='{urn:ietf:params:xml:ns:xmpp-bind}')
                 ResourceStz = x.e.find(ResourceTag)
                 if ResourceStz!=None:
                     self.resource = ResourceStz.text
                     utils.dprint("# Client Resource is " + self.resource)
                     nx = xm(self.SentHeader)
                     nx.create(tag='iq',
-                              attrib={'id':x.e.attrib['id'],'type':'result'},
-                              sub=[xm(self.SentHeader,tag='bind',
+                              attrib={'id':x.e.attrib['id'],
+                                      'type':'result'},
+                              sub=[xm(self.SentHeader,
+                                      tag='bind',
                                       attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-bind'},
                                       sub=[xm(self.SentHeader,tag='jid',
                                               text=self.fulljid())])])
                     self.send(nx.tostring())
                     return
                 
-                SessionTag='{NS}session'.format(NS='{urn:ietf:params:xml:ns:xmpp-session}')
+                SessionTag='{NS}session'
+                SessionTag=SessionTag.format(NS='{urn:ietf:params:xml:ns:xmpp-session}')
                 SessionStz = x.e.find(SessionTag)
                 if SessionStz!=None:
                     nx = xm(self.SentHeader,tag='iq',
@@ -419,7 +432,10 @@ class sessmanager:
         pass
     
     def srvrec(self,domain):
-        m = subprocess.check_output(['/usr/bin/host', '-t', 'SRV', '_xmpp-server._tcp.'+domain])
+        m = subprocess.check_output(['/usr/bin/host',
+                                     '-t',
+                                     'SRV',
+                                     '_xmpp-server._tcp.'+domain])
         m = m.decode('utf-8')
         lm = m.splitlines()
         svlist=[]
@@ -508,13 +524,15 @@ class sessmanager:
                    'type':'get'}
                 if ses.ident()!='': a['to']=ses.ident()
                 nx = xm(ses.SentHeader,tag='iq',attrib=a,
-                        sub=[xm(ses.SentHeader,tag='ping',attrib={'xmlns':'urn:xmpp:ping'})])
+                        sub=[xm(ses.SentHeader,
+                                tag='ping',
+                                attrib={'xmlns':'urn:xmpp:ping'})])
                 ses.send(nx.tostring())
                 ses.TmPing = int(time.time())
                 pass
             if ses.TmRmsg+(180*3)<int(time.time()):
-                if ses.Type==ns.TYPE_S: ses.TmRmsg=int(time.time())
-                else: ses.stream.close()
+                ses.stream.close()
+                self.closed(ses,'')
                 pass
             pass
         pass
