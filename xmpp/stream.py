@@ -73,6 +73,10 @@ class stream(threading.Thread):
     def close(self):
         self.socket.close()
         pass
+
+    def ping(self):
+        self.send(' ')
+        pass
     
     def send(self,m):
         try:

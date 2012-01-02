@@ -44,7 +44,6 @@ class session:
     def __init__(self):
         self.manager = None
         self.authman = None
-        #self.servauth = False
         self.activeopen = False
         self.sendkey = False
         self.authorized = True
@@ -103,9 +102,6 @@ class session:
         x.fromstring(m)
         utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
         
-        #pmsg='<presence from="{F}" to="{T}" type="subscribed" /><presence from="{F}" to="{T}" />'
-        #pmsg=pmsg.format(F=self.ident(),T=x.e.attrib['to'])
-        
         inttag = ''
         posa = m.find('>')
         posb = m.rfind('<')
@@ -130,9 +126,11 @@ class session:
         newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
         nx=xm(sess.SentHeader)
         nx.fromstring(newmsg)
-        #utils.dprint(nx.tostring())
-        #utils.dprint(nx.tostring())
-        #sess.send(pmsg)
+        
+        pmsg='<presence from="{F}" to="{T}" type="subscribed" /><presence from="{F}" to="{T}" />'
+        pmsg=pmsg.format(F=att['from'],T=att['to'])
+
+        sess.send(pmsg)
         sess.send(nx.tostring())
         
         pass
@@ -235,15 +233,6 @@ class session:
                     self.send(nx.tostring(),force=True)
                     pass
 
-                #if random.choice('01')=='1' and self.activeopen==False:
-                #    nx = xm(self.SentHeader)
-                #    nx.create(tag='stream:features',
-                #              sub=[xm(self.SentHeader,tag='dialback',
-                #                      attrib={'xmlns':'urn:xmpp:features:dialback'},
-                #                      sub=[xm(self.SentHeader,tag='optional')])])
-                #    self.send(nx.tostring())
-                #    pass
-                
                 pass
             return
 
@@ -293,7 +282,8 @@ class session:
                 if self.authman == None:
                     self.authman = xmpp.auth.manager(self.manager.servname, self.send,
                                                      self.pwfunc, self.authenticated)
-                    (self.authman.sendsthdr,self.authman.recvsthdr) = (self.SentHeader,self.RcvdHeader)
+                    (self.authman.sendsthdr,
+                     self.authman.recvsthdr) = (self.SentHeader,self.RcvdHeader)
                     pass
                 if self.authman.authenticated == False:
                     self.authman.proc(m)
@@ -363,36 +353,6 @@ class session:
         
         elif self.Type=='Server':
             
-            #if x.e.tag=='{http://etherx.jabber.org/streams}features':
-            #    nx = xm(self.SentHeader)
-            #    nx.create(tag='stream:features',
-            #              sub=[xm(self.SentHeader,tag='dialback',
-            #                      attrib={'xmlns':'urn:xmpp:features:dialback'},
-            #                      sub=[xm(self.SentHeader,tag='optional')])])
-            #    self.send(nx.tostring())
-                
-            #     
-            #     intags = x.e.findall('*')
-            #     itstr = []
-            #     for ie in intags: itstr.append(ie.tag)
-            # 
-            #     if '{urn:ietf:params:xml:ns:xmpp-tls}starttls' in itstr: pass
-            #     if '{http://jabber.org/features/compress}compression' in itstr: pass
-            #     if '{urn:xmpp:features:dialback}dialback' in itstr:
-            #         key='1e701f120f66824b57303384e83b51feba858024fd2221d39f7acc52dcf767a9'
-            #         nx = xm(self.SentHeader,tag='db:result',
-            #                 attrib={'from':self.manager.servname,'to':self.peername},
-            #                 text=key)
-            #         self.send(nx.tostring(),force=True)
-            #         return
-            #     
-            #     #DialBackTag='{urn:xmpp:features:dialback}dialback'
-            #     #DialBackStz=x.e.find(DialBackTag)
-            #     #if DialBackStz!=None:
-            #     #    return
-            #     
-            #     return
-
             if x.e.tag=='{jabber:server:dialback}verify':
                 
                 nx = xm(self.SentHeader,tag='db:verify',
@@ -403,8 +363,6 @@ class session:
                                 'type':'valid'},
                         text=x.e.text)
                 self.send(nx.tostring())
-                # time.sleep(1)
-                # self.send('</stream:stream>')
                 return
             
             if x.e.tag=='{jabber:server:dialback}result':
@@ -422,43 +380,6 @@ class session:
                     self.send(nx.tostring())
                     return
 
-                #    serv = x.e.attrib['from']
-                #    hostportlist = self.manager.sessmanager.srvrec(serv)
-                #    self.manager.sessmanager.add_active_socket(hostportlist[0],serv)
-                    
-                    # s = socket.create_connection((host, 5269), 5)
-                    # s.settimeout(None)
-                    # nx1 = xm('',tag='stream:stream',
-                    #          attrib={'xmlns':'jabber:server',
-                    #                  'xmlns:db':'jabber:server:dialback',
-                    #                  'xmlns:stream':'http://etherx.jabber.org/streams',
-                    #                  'xmlns:xml':"http://www.w3.org/XML/1998/namespace",
-                    #                  'version':'1.0',
-                    #                  'to':serv,
-                    #                  'from':self.manager.servname})
-                    # sth = nx1.tostring()
-                    # s.send(sth.encode('cp932'))
-                    # utils.dprint(sth.encode('cp932'))
-                    # rmsg = s.recv(1024*1024)
-                    # utils.dprint(rmsg)
-                    # nx2 = xm(sth,tag='db:verify',
-                    #          attrib={'from':self.manager.servname,
-                    #                  'to':serv,
-                    #                  'id':utils.randstr(16)},
-                    #          text=x.e.text)
-                    # s.send(nx2.tostring().encode('cp932'))
-                    # utils.dprint(nx2.tostring().encode('cp932'))
-                    # rmsg = s.recv(1024*1024)
-                    # utils.dprint(rmsg)
-                    # s.send('</stream:stream>'.encode('cp932'))
-                    
-                #    nx = xm(self.SentHeader,tag='db:result',
-                #            attrib={'from':x.e.attrib['to'],
-                #                    'to':x.e.attrib['from'],
-                #                    'type':'valid'},
-                #            text=x.e.text)
-                #    self.send(nx.tostring())
-                #    return
                 return
             pass
 
@@ -556,37 +477,19 @@ class sessmanager:
                 self.pendingmsg.append((s,m,t,'connecting'))
             except: pass
             
-            # try: ps = socket.create_connection(pa, 5)
-            # except:
-            #     self.pendingmsg.remove((s,m,t,stat))
-            #     return
-            # self.pendingmsg.remove((s,m,t,stat))
-            # self.pendingmsg.append((s,m,t,'connecting'))
-            # ps.settimeout(None)
-            # nx = xm('')
-            # a = {'xmlns:stream':'http://etherx.jabber.org/streams',
-            #      'xmlns':'jabber:server',
-            #      'xmlns:db':'jabber:server:dialback',
-            #      'version':'1.0',
-            #      'from':self.manager.servname,
-            #      'to':sname}
-            # nx.create(tag='stream:stream', attrib=a)
-            # self.addsocket(ps,pa,nx.tostring(),sname)
-            # try: self.pendingmsg.append((s,m,t,'connecting'))
-            # except: pass
-            
             pass
         
         pass
     
     def timercheck(self):
         for ses in self.sessionlist:
-            if ses.TmPing+60<int(time.time()):
-                nx = xm(ses.SentHeader,tag='iq',
-                        attrib={'from':self.manager.servname,
-                                'to':ses.ident(),
-                                'id':utils.randstr(8),
-                                'type':'get'},
+            if ses.TmPing+30<int(time.time()):
+                ses.stream.ping()
+                a={'from':self.manager.servname,
+                   'id':utils.randstr(8),
+                   'type':'get'}
+                if ses.ident()!='': a['to']=ses.ident()
+                nx = xm(ses.SentHeader,tag='iq',attrib=a,
                         sub=[xm(ses.SentHeader,tag='ping',attrib={'xmlns':'urn:xmpp:ping'})])
                 ses.send(nx.tostring())
                 ses.TmPing = int(time.time())
@@ -600,12 +503,12 @@ class sessmanager:
 
     def print(self):
         xmpp.utils.print_clear()
-        print("=====================")
-        print("clients:")
-        l = "|{JID:<35}|{CRM:>5}|{CSM:>5}|{TP:>4}|{TR:>4}|{PT:>10}|{PS:>10}|{PH:>10}|"
-        l = l.format(JID="JID",CRM="#recv",CSM="#send",TP="ping",TR="last",
-                     PT="ptype", PS="pstat", PH="pshow")
-        print(l)
+        #print("=====================")
+        #print("clients:")
+        #l = "|{JID:<35}|{CRM:>5}|{CSM:>5}|{TP:>4}|{TR:>4}|{PT:>10}|{PS:>10}|{PH:>10}|"
+        #l = l.format(JID="JID",CRM="#recv",CSM="#send",TP="ping",TR="last",
+        #             PT="ptype", PS="pstat", PH="pshow")
+        #print(l)
         for ses in self.sessionlist:
             print(ses.Type, ses.stream.peeraddr, ses.ident(),
                   ses.CntSMsg,ses.CntRMsg,
@@ -653,8 +556,6 @@ class sessmanager:
                  'xmlns':'jabber:server',
                  'xmlns:db':'jabber:server:dialback',
                  'version':'1.0'}
-            #'from':self.manager.servname,
-            #'to':ses.peername}
             nx.create(tag='stream:stream', attrib=a)
             sthdr = nx.tostring()
             ses.send(sthdr)
@@ -667,25 +568,6 @@ class sessmanager:
             print("Unexpected error:", sys.exc_info())
             return
         pass
-    
-    #def addsocket(self, peersock, peeraddr, initmsg='', peername=''):
-    #    ses = session()
-    #    ses.manager = self.manager
-    #    ses.stream = xmpp.stream.stream()
-    #    ses.stream.CBF_recv = ses.recv
-    #    ses.stream.CBF_closed = self.closed
-    #    ses.stream.peeraddr = peeraddr
-    #    ses.stream.socket = peersock
-    #    ses.peername = peername
-    #    if initmsg!='':
-    #        ses.send(initmsg)
-    #        ses.SentHeader = initmsg
-    #        ses.servauth = False
-    #        pass
-    #    else: ses.servauth = True
-    #    ses.stream.start()
-    #    self.sessionlist.append(ses)
-    #    pass
     
     pass
 
