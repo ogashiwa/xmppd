@@ -98,7 +98,10 @@ class session:
         pass
     
     def pwfunc(self, u):
-        return self.manager.confmanager.userlist[u]
+        ret = ''
+        try: ret = self.manager.confmanager.userlist[u]
+        except: pass
+        return ret
     
     def send(self,m,force=False):
         if force==False and self.authorized==False: return
@@ -107,42 +110,44 @@ class session:
         pass
 
     def forward(self,sess,m):
-        
-        x = xm(self.RcvdHeader)
-        x.fromstring(m)
-        utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
-        
-        inttag = ''
-        posa = m.find('>')
-        posb = m.rfind('<')
-        inttag = m[posa+1:posb]
-        utils.dprint(inttag)
-        att={'to':x.e.attrib['to']}
-        
-        if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
-        elif self.ident()!='': att['from']=self.ident()
-        if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
-        if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
-        atstr = ''
-        for k,v in att.items():
-            tmpstr = ' {N}="{VAL}" '.format(N=k,VAL=v)
-            atstr += tmpstr
-            pass
-        nt='iq'
-        if x.e.tag.find('}message')>0: nt='message'
-        elif x.e.tag.find('}iq')>0: nt='iq'
-        elif x.e.tag.find('}presence')>0: nt='presence'
-        
-        newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
-        nx=xm(sess.SentHeader)
-        nx.fromstring(newmsg)
-        
-        pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
-              '<presence from="{F}" to="{T}" />'
-        pmsg=pmsg.format(F=att['from'],T=att['to'])
+        try:
+            x = xm(self.RcvdHeader)
+            x.fromstring(m)
+            utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
 
-        sess.send(pmsg)
-        sess.send(nx.tostring())
+            inttag = ''
+            posa = m.find('>')
+            posb = m.rfind('<')
+            inttag = m[posa+1:posb]
+            utils.dprint(inttag)
+            att={'to':x.e.attrib['to']}
+        
+            if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
+            elif self.ident()!='': att['from']=self.ident()
+            if 'id' in x.e.attrib: att['id']=x.e.attrib['id']
+            if 'type' in x.e.attrib: att['type']=x.e.attrib['type']
+            atstr = ''
+            for k,v in att.items():
+                tmpstr = ' {N}="{VAL}" '.format(N=k,VAL=v)
+                atstr += tmpstr
+                pass
+            nt='iq'
+            if x.e.tag.find('}message')>0: nt='message'
+            elif x.e.tag.find('}iq')>0: nt='iq'
+            elif x.e.tag.find('}presence')>0: nt='presence'
+            
+            newmsg = '<{T} {A}>{I}</{T}>'.format(T=nt,A=atstr,I=inttag)
+            nx=xm(sess.SentHeader)
+            nx.fromstring(newmsg)
+            
+            pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
+                  '<presence from="{F}" to="{T}" />'
+            pmsg=pmsg.format(F=att['from'],T=att['to'])
+            
+            sess.send(pmsg)
+            sess.send(nx.tostring())
+        except:
+            pass
         
         pass
 
