@@ -115,9 +115,11 @@ class stream(threading.Thread):
             s = res.group(2)
             self.CBF_recv(self,res.group(1))
         while True:
-            spl = msg.xmlblock(s)
-            (blk, s) = spl.get()
-            if len(blk) > 0:
+            try:
+                spl = msg.xmlblock(s)
+                (blk, s) = spl.get()
+            except: print("Unexpected error:", sys.exc_info())
+            if len(blk) > 0 and blk.find('<')!=-1 and blk.find('>')!=-1:
                 utils.dprint("R:"+str(self.peeraddr)+": "+blk)
                 self.CBF_recv(self,blk)
             else: break

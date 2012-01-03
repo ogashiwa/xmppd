@@ -40,7 +40,10 @@ class xmlblock:
         self.d = d
         self.dep = 0
         try: self.p.Parse(self.d,0)
-        except: pass
+        except:
+            print("Unexpected error:", sys.exc_info())
+            print(d)
+            pass
         pass
     def data(self, data): pass
     def start(self,tag,attrs): self.dep += 1

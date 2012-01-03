@@ -179,44 +179,16 @@ class session:
                  'xmlns:xml':"http://www.w3.org/XML/1998/namespace",
                  'version':'1.0'}
             
-            
             if m.find('jabber:client')>0:
                 self.Type=ns.TYPE_C
                 a['xmlns'] = 'jabber:client'
                 a['from'] = self.manager.servname
                 nx.create(tag='stream:stream', attrib=a)
                 self.SentHeader = ''
-                pass
-            
-            elif m.find('jabber:component:accept')>0:
-                self.Type=ns.TYPE_M
-                a['xmlns'] = 'jabber:component:accept'
-                a['id'] = utils.randstr(8)
-                a['from'] = self.manager.servname
-                nx.create(tag='stream:stream', attrib=a)
-                pass
-
-            elif m.find('jabber:server')>0:
-                self.Type=ns.TYPE_S
-                if 'from' in x.e.attrib: self.peername = x.e.attrib['from']
-                a['xmlns'] = 'jabber:server'
-                a['xmlns:db']='jabber:server:dialback'
-                if self.peername!='': a['to'] = self.peername
-                self.streamid = utils.randstr(16)
-                a['id'] = self.streamid
-                nx.create(tag='stream:stream', attrib=a)
-                pass
-            
-            else:
-                self.stream.close()
-                return
-
-            if self.SentHeader=='':
-                self.SentHeader = nx.tostring()
-                self.send(self.SentHeader)
-                pass
-            
-            if self.Type==ns.TYPE_C:
+                if self.SentHeader=='':
+                    self.SentHeader = nx.tostring()
+                    self.send(self.SentHeader)
+                    pass
                 mec = xm(self.SentHeader)
                 mec.create(tag='mechanisms',
                            attrib={'xmlns':'urn:ietf:params:xml:ns:xmpp-sasl'},
@@ -238,12 +210,37 @@ class session:
                 nx.create(tag='stream:features', sub=subtag)
                 self.send(nx.tostring())
                 pass
-
-            if self.Type==ns.TYPE_M:
+            
+            elif m.find('jabber:component:accept')>0:
+                self.Type=ns.TYPE_M
+                a['xmlns'] = 'jabber:component:accept'
+                a['id'] = utils.randstr(8)
+                a['from'] = self.manager.servname
+                nx.create(tag='stream:stream', attrib=a)
+                if self.SentHeader=='':
+                    self.SentHeader = nx.tostring()
+                    self.send(self.SentHeader)
+                    pass
                 self.peername = x.e.attrib['from']
                 pass
 
-            if self.Type==ns.TYPE_S:
+            elif m.find('jabber:server')>0:
+                self.Type=ns.TYPE_S
+                if 'from' in x.e.attrib: self.peername = x.e.attrib['from']
+                a['xmlns'] = 'jabber:server'
+                a['xmlns:db']='jabber:server:dialback'
+                if self.peername!='': a['to'] = self.peername
+                self.streamid = utils.randstr(16)
+                a['id'] = self.streamid
+                nx.create(tag='stream:stream', attrib=a)
+                msg = ''
+                if self.SentHeader=='':
+                    self.SentHeader = nx.tostring()
+                    msg = msg+nx.tostring()
+                    if random.choice('012') == '0':
+                        msg = msg+'<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>'
+                        pass
+                    self.send(msg)
                 
                 if self.activeopen:
                     key=create_key(utils.randstr(16),
@@ -255,10 +252,10 @@ class session:
                             text=key)
                     self.send(nx.tostring(),force=True)
                     pass
-
                 pass
+            
             return
-
+        
         # ============================================================
         # msg forward check
         # ============================================================
@@ -276,6 +273,7 @@ class session:
                 
                 if x.e.attrib['to']==sess.ident(): fw = True
                 elif sess.Type==ns.TYPE_C and x.e.attrib['to']==sess.barejid(): fw = True
+                elif sess.Type==ns.TYPE_C and (uname+'@'+sname)==sess.barejid(): fw = True
                 elif sname==sess.ident(): fw = True
                 
                 if fw==True:
@@ -454,6 +452,7 @@ class sessmanager:
             pass
         minsv = minsv[0]
         #return minsv
+        if len(hostportlist)==0: hostportlist.append((domain,5269))
         return hostportlist
     
     def pendmsgcheck(self):
