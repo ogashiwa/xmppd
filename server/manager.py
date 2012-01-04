@@ -63,6 +63,8 @@ class session:
         self.SentHeader = ''
         self.RcvdHeader = ''
         self.stream = None
+        self.TmCreated = int(time.time())
+        self.NeedStFeat = False
         self.TmPing = int(time.time())
         self.TmRmsg = int(time.time())
         self.CntSMsg = 0
@@ -246,9 +248,7 @@ class session:
                 if self.SentHeader=='':
                     self.SentHeader = nx.tostring()
                     msg = msg+nx.tostring()
-                    if random.choice('012') == '0':
-                        msg = msg+'<stream:features><dialback xmlns="urn:xmpp:features:dialback"><optional/></dialback></stream:features>'
-                        pass
+                    self.NeedStFeat = True
                     self.send(msg)
                 
                 if self.activeopen:
@@ -279,8 +279,11 @@ class session:
             for sess in self.manager.sessmanager.sessionlist:
                 fw = False
                 if sess==self: continue
-                
-                if x.e.attrib['to']==sess.ident(): fw = True
+
+                if sess.Type==ns.TYPE_S and sname==sess.ident():
+                    if sess.activeopen and sess.authorized: fw = True
+                    pass
+                elif x.e.attrib['to']==sess.ident(): fw = True
                 elif sess.Type==ns.TYPE_C and x.e.attrib['to']==sess.barejid(): fw = True
                 elif sess.Type==ns.TYPE_C and (uname+'@'+sname)==sess.barejid(): fw = True
                 elif sname==sess.ident(): fw = True
@@ -404,6 +407,7 @@ class session:
                 return
             
             if x.e.tag=='{jabber:server:dialback}result':
+                self.NeedStFeat = False
                 
                 if 'type' in x.e.attrib:
                     if x.e.attrib['type']=='valid': self.authorized = True
@@ -525,6 +529,12 @@ class sessmanager:
     
     def timercheck(self):
         for ses in self.sessionlist:
+            if ses.NeedStFeat and ses.TmPing+5<int(time.time()):
+                msg = '<stream:features><dialback xmlns="urn:xmpp:features:dialback">'+\
+                      '<optional/></dialback></stream:features>'
+                ses.send(msg)
+                ses.NeedStFeat = False
+                pass
             if ses.TmPing+60<int(time.time()):
                 ses.stream.ping()
                 a={'from':self.manager.servname,
@@ -535,11 +545,16 @@ class sessmanager:
                         sub=[xm(ses.SentHeader,
                                 tag='ping',
                                 attrib={'xmlns':'urn:xmpp:ping'})])
-                ses.send(nx.tostring())
+                ses.send(nx.tostring(),force=True)
                 ses.TmPing = int(time.time())
                 pass
             if ses.TmRmsg+(180*3)<int(time.time()):
-                ses.stream.close()
+                if ses.Type==ns.TYPE_S:
+                    if activeopen==False: ses.stream.close()
+                    pass
+                else:
+                    ses.stream.close()
+                    pass
                 pass
             pass
         pass
@@ -553,10 +568,15 @@ class sessmanager:
         #             PT="ptype", PS="pstat", PH="pshow")
         #print(l)
         for ses in self.sessionlist:
-            print(ses.Type, ses.stream.peeraddr, ses.ident(),
+            aptype = 'P'
+            if ses.activeopen: aptype = 'A'
+            print(ses.Type,
+                  aptype,
+                  ses.stream.peeraddr, ses.ident(),
                   ses.CntSMsg,ses.CntRMsg,
                   int(time.time())-ses.TmPing,
-                  int(time.time())-ses.TmRmsg)
+                  int(time.time())-ses.TmRmsg,
+                  int(time.time())-ses.TmCreated)
             pass
         pass
     
