@@ -550,7 +550,7 @@ class sessmanager:
                 pass
             if ses.TmRmsg+(180*3)<int(time.time()):
                 if ses.Type==ns.TYPE_S:
-                    if activeopen==False: ses.stream.close()
+                    if ses.activeopen==False: ses.stream.close()
                     pass
                 else:
                     ses.stream.close()
