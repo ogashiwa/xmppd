@@ -96,6 +96,10 @@ class session:
             self.stream.close()
             pass
         pass
+
+    def close(self):
+        self.stream.close()
+        pass
     
     def pwfunc(self, u):
         ret = ''
@@ -536,7 +540,6 @@ class sessmanager:
                 pass
             if ses.TmRmsg+(180*3)<int(time.time()):
                 ses.stream.close()
-                self.closed(ses,'')
                 pass
             pass
         pass
