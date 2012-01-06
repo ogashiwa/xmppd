@@ -187,6 +187,11 @@ class MechPlain:
             password = password + chr(tmpstr[i])
             pass
         return (username,password)
+    
+    def plaintostr(self,us,pw):
+        s = ''
+        s += s + '\0' + us  + '\0' + pw  + '\0'
+        return base64.b64encode(s.encode('cp932')).decode('utf-8')
 
     def proc(self, m):
         x = xm(self.manager.recvsthdr)

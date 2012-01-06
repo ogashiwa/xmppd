@@ -36,9 +36,9 @@ class stream(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.setDaemon(True)
-        self.ServerName = "localhost"
-        self.StateSendStHdr = False
-        self.StateRecvStHdr = False
+        #self.ServerName = "localhost"
+        #self.StateSendStHdr = False
+        #self.StateRecvStHdr = False
         self.CBF_recv = self.nf
         self.CBF_closed = self.nf
         self.CBF_pong = self.nf
@@ -94,11 +94,13 @@ class stream(threading.Thread):
         pass
     
     def connect(self, serv, port):
+        self.peeraddr = (serv,port)
         self.socket = socket.create_connection((serv, port), 5)
         self.socket.settimeout(None)
         pass
     
     def connect6(self, serv, port):
+        self.peeraddr = (serv,port)
         self.socket = socket.create_connection((serv, port), 5)
         self.socket.settimeout(None)
         pass
