@@ -196,14 +196,14 @@ class MechPlain:
             m = success(self.manager.sendsthdr)
             self.manager.CBF_SendFunc(m)
             self.manager.authenticated = True
-            x=xm('')
-            x.create(tag='stream:stream',
-                     attrib={'from':self.manager.servname,
-                             'version':"1.0",
-                             'xmlns':"jabber:client",
-                             'xmlns:stream':"http://etherx.jabber.org/streams",
-                             'xmlns:xml':"http://www.w3.org/XML/1998/namespace"})
-            self.manager.CBF_SendFunc(x.tostring())
+            #x=xm('')
+            #x.create(tag='stream:stream',
+            #         attrib={'from':self.manager.servname,
+            #                 'version':"1.0",
+            #                 'xmlns':"jabber:client",
+            #                 'xmlns:stream':"http://etherx.jabber.org/streams",
+            #                 'xmlns:xml':"http://www.w3.org/XML/1998/namespace"})
+            #self.manager.CBF_SendFunc(x.tostring())
             self.manager.CBF_AuthenticatedFunc(True)
             pass
         else:
