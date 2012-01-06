@@ -174,7 +174,7 @@ class session:
         
         self.CntRMsg += 1
         self.TmRmsg = int(time.time())
-        
+
         x = xm(self.RcvdHeader)
         x.fromstring(m)
 
