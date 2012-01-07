@@ -386,6 +386,7 @@ class session:
             if x.e.tag=='{jabber:component:accept}handshake':
                 self.send('<handshake />')
                 utils.dprint(m)
+                self.send('<handshake />')
                 return
             pass
         
