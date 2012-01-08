@@ -32,12 +32,15 @@ import xmpp.utils as utils
 from xmpp.msg import xmsg as xm
 
 class entity:
-
+    
+    def CreateStanza(self):
+        return xm(self.SendStmHdr)
+    
     def RegisterCallbackFunctions(self,
-        Received      = None,
-        Closed        = None,
-        Connected     = None,
-        ErrorOccurred = None):
+                                  Received      = None,
+                                  Closed        = None,
+                                  Connected     = None,
+                                  ErrorOccurred = None):
         self.CBF_received = Received
         self.CBF_closed = Closed
         self.CBF_connected = Connected
@@ -45,20 +48,26 @@ class entity:
         pass
 
     def SetOptions(self,
-        AuthPong   = None,
-        UserName   = None,
-        Password   = None,
-        Resource   = None,
-        AuthMethod = None,
-        ServerName = None,
-        ServerPort = None):
-        self.AuthPong = AuthPong
+                   AutoPong   = None,
+                   UserName   = None,
+                   Password   = None,
+                   Resource   = None,
+                   AuthMethod = None,
+                   ServerName = None,
+                   ServerPort = 5222,
+                   ComponentName = None,
+                   ComponentKey = None):
+        self.AutoPong = AutoPong
         self.UserName = UserName
         self.Password = Password
         self.Resource = Resource
         self.AuthMethod = AuthMethod
         self.ServerName = ServerName
         self.ServerPort = ServerPort
+        if self.Type == 'component':
+            self.UserName = ComponentName
+            self.Password = ComponentKey
+            pass
         pass
     
     def DebugMode(self, sw=True):
@@ -70,7 +79,7 @@ class entity:
                      self.UserName, self.Password,
                      self.Resource)
         pass
-    
+
     ################################################################################
     def __init__(self, type):
         self.Type = type
@@ -148,17 +157,17 @@ class entity:
             self.SendStmHdr = x.tostring()
             self.stream.send(self.SendStmHdr)
             pass
-
-        elif '{jabber:client}iq'==x.e.tag and \
+        
+        elif ('{jabber:client}iq'==x.e.tag or '{jabber:component:accept}iq'==x.e.tag) and \
                  'id' in x.e.attrib and \
                  (x.e.attrib['id'] == 'bind_1' or x.e.attrib['id'] == 'sess_1') and \
                  self.Type == 'client':
             pass
         
-        else:
-            x=xm(self.RecvStmHdr)
-            x.fromstring(m)
-            if self.AuthPong:
+        elif ('{jabber:client}iq'==x.e.tag or '{jabber:component:accept}iq'==x.e.tag) and \
+                 'id' in x.e.attrib:
+            ch = x.e.find('{urn:xmpp:ping}ping')
+            if ch!=None and self.AutoPong:
                 pong = xm(self.SendStmHdr)
                 pong.create(tag='iq',
                             attrib={'from':x.e.attrib['to'],
@@ -167,9 +176,17 @@ class entity:
                                     'type':'result'})
                 self.stream.send(pong.tostring())
                 pass
-            elif self.CBF_received!=None:
-                self.CBF_received(x.e)
+            else:
+                x=xm(self.RecvStmHdr)
+                x.fromstring(m)
+                if self.CBF_received!=None: self.CBF_received(x)
                 pass
+            pass
+                
+        else:
+            x=xm(self.RecvStmHdr)
+            x.fromstring(m)
+            if self.CBF_received!=None: self.CBF_received(x)
             pass
         
         pass
@@ -208,5 +225,16 @@ class entity:
         self.stream.send(m)
         pass
     
+    pass
+
+
+class XmppServerComponent(entity):
+    def __init__(self):
+        entity.__init__(self,type="component")
+    pass
+
+class XmppClient(entity):
+    def __init__(self):
+        entity.__init__(self,type="client")
     pass
 

@@ -29,28 +29,19 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import time
-from xmpp import entity
+from xmpp.entity import XmppClient
 
-XmppComponent = entity.entity(type='component')
+xc = XmppClient()
 
 def g_received(stz):
-    global XmppComponent
     RecvStz = stz.GetSourceStanza()
     RecvET = stz.GetElementTree()
-
-    #===== FROM HERE =====
     
     print("#####STANZA#####")
     print(RecvStz)
     print("################")
     print(RecvET.tag)
     print("################")
-
-    if 'from' in RecvET.attrib:
-        msg = '<message from="{ME}" to="{YOU}" id="msgstanza"><body>hello</body></message>'
-        msg = msg.format(ME='muc.nlab.jp', YOU=RecvET.attrib['from'])
-        XmppComponent.send(msg)
-        pass
     
     if RecvET.tag=='{jabber:client}iq':
         pass
@@ -64,8 +55,6 @@ def g_received(stz):
     else:
         pass
     
-    #===== END =====
-    
     pass
 
 def g_connected(): print("connected")
@@ -75,30 +64,29 @@ def g_error(): print("error")
 ################################################################################
 
 def main():
-    global XmppComponent
+    global xc
     
-    XmppComponent.DebugMode(True)
+    xc.DebugMode(True)
     
-    XmppComponent.RegisterCallbackFunctions(
+    xc.RegisterCallbackFunctions(
         Received = g_received,
         Closed = g_closed,
         Connected = g_connected,
         ErrorOccurred = g_error)
     
-    XmppComponent.SetOptions(
+    xc.SetOptions(
         AutoPong = True,
-        ComponentName = 'muc.nlab.im',
-        ComponentKey  = 'test001',
+        UserName = 'test001',
+        Password = 'test001',
+        Resource = 'myclient',
+        AuthMethod = 'PLAIN',
         ServerName = 'nlab.im',
         ServerPort = 5222)
     
-    XmppComponent.Start()
+    xc.Start()
     
     while True:
         time.sleep(1)
-        msg = '<message from="{ME}" to="{YOU}" id="msgstanza"><body>hello</body></message>'
-        msg = msg.format(ME='muc.nlab.jp', YOU='ogashiwa@nlab.im')
-        XmppComponent.send(msg)        
         pass
     pass
 

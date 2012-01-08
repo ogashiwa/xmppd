@@ -31,7 +31,6 @@ import xml
 from xml.etree import ElementTree as ET
 
 class xmlblock:
-    
     def __init__(self,d):
         self.p = xml.parsers.expat.ParserCreate()
         self.p.StartElementHandler  = self.start
@@ -71,6 +70,10 @@ def _register_namespace():
     pass
 
 class xmsg:
+    def GetSourceStanza(self): return self._source
+    
+    def GetElementTree(self): return self.e
+
     def _mkstreamtag(self,s):
         if s.find("<stream:stream ")!=-1:
             if s.find("</stream:stream>")!=-1: s=s.replace("</stream:stream>","")
@@ -89,6 +92,8 @@ class xmsg:
         pass
     
     def __init__(self, header, tag='', attrib={}, text='', sub=[]):
+        self._source = ''
+        self.e = None
         _register_namespace()
         (self.header, self.tailer) = (header, '</stream:stream>')
         self.e = None
