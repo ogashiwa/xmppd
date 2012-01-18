@@ -64,12 +64,13 @@ class session:
         self.RcvdHeader = ''
         self.stream = None
         self.TmCreated = int(time.time())
-        self.NeedStFeat = False
+        #self.NeedStFeat = False
         self.TmPing = int(time.time())
         self.TmRmsg = int(time.time())
         self.CntSMsg = 0
         self.CntRMsg = 0
         self.streamid = 0
+        self.streamver = 0
         pass
 
     def fulljid(self):
@@ -146,11 +147,11 @@ class session:
             nx=xm(sess.SentHeader)
             nx.fromstring(newmsg)
             
-            pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
-                  '<presence from="{F}" to="{T}" />'
-            pmsg=pmsg.format(F=att['from'],T=att['to'])
-            
-            sess.send(pmsg)
+            #pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
+            #      '<presence from="{F}" to="{T}" />'
+            #pmsg=pmsg.format(F=att['from'],T=att['to'])
+            #
+            #sess.send(pmsg)
             sess.send(nx.tostring())
         except:
             pass
@@ -187,8 +188,18 @@ class session:
             self.RcvdHeader = m
             nx = xm(self.SentHeader)
             a = {'xmlns:stream':'http://etherx.jabber.org/streams',
-                 'xmlns:xml':"http://www.w3.org/XML/1998/namespace",
-                 'version':'1.0'}
+                 'xmlns:xml':"http://www.w3.org/XML/1998/namespace"}
+            
+            if 'version' in x.e.attrib:
+                self.streamver = float(x.e.attrib['version'])
+                if self.streamver == 1.0: a['version'] = '1.0'
+                elif self.streamver == 0.9: pass
+                else: pass # ERROR: unknown version
+                pass
+            else:
+                self.streamver = 0.9
+                pass
+            utils.dprint("stream version: "+ str(self.streamver))
             
             if m.find('jabber:client')>0:
                 self.Type=ns.TYPE_C
@@ -234,7 +245,7 @@ class session:
                     pass
                 self.peername = x.e.attrib['from']
                 pass
-
+            
             elif m.find('jabber:server')>0:
                 self.Type=ns.TYPE_S
                 if 'from' in x.e.attrib: self.peername = x.e.attrib['from']
@@ -248,9 +259,14 @@ class session:
                 if self.SentHeader=='':
                     self.SentHeader = nx.tostring()
                     msg = msg+nx.tostring()
-                    self.NeedStFeat = True
+                    #self.NeedStFeat = True
+                    if self.streamver == 1.0:
+                        msg += '<stream:features>'+\
+                               '<dialback xmlns="urn:xmpp:features:dialback">'+\
+                               '<optional/></dialback></stream:features>'
+                        pass
                     self.send(msg)
-                
+                    
                 if self.activeopen:
                     key=create_key(utils.randstr(16),
                                    self.manager.servname,self.peername,
@@ -409,7 +425,7 @@ class session:
                 return
             
             if x.e.tag=='{jabber:server:dialback}result':
-                self.NeedStFeat = False
+                #self.NeedStFeat = False
                 
                 if 'type' in x.e.attrib:
                     if x.e.attrib['type']=='valid': self.authorized = True
@@ -531,12 +547,12 @@ class sessmanager:
     
     def timercheck(self):
         for ses in self.sessionlist:
-            if ses.NeedStFeat and ses.TmPing+5<int(time.time()):
-                msg = '<stream:features><dialback xmlns="urn:xmpp:features:dialback">'+\
-                      '<optional/></dialback></stream:features>'
-                ses.send(msg)
-                ses.NeedStFeat = False
-                pass
+            #if ses.NeedStFeat and ses.TmPing+5<int(time.time()):
+            #    msg = '<stream:features><dialback xmlns="urn:xmpp:features:dialback">'+\
+            #          '<optional/></dialback></stream:features>'
+            #    ses.send(msg)
+            #    ses.NeedStFeat = False
+            #    pass
             if ses.TmPing+60<int(time.time()):
                 ses.stream.ping()
                 a={'from':self.manager.servname,
