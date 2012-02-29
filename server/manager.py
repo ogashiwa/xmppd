@@ -445,6 +445,8 @@ class session:
     
     pass
 
+################################################################################
+
 class sessmanager:
 
     def __init__(self, manager):
@@ -632,6 +634,8 @@ class sessmanager:
     
     pass
 
+################################################################################
+
 class confmanager:
 
     def __init__(self, manager):
@@ -649,7 +653,7 @@ class confmanager:
         self.sbindaddr6 = '::'
         self.servname = ''
         pass
-    
+
     def read(self, fname):
         f = open(fname, 'r')
         for line in f:
@@ -703,6 +707,8 @@ class confmanager:
     
     pass
 
+################################################################################
+
 class serversocket(threading.Thread):
     
     def __init__(self, bindaddr, port, ipver=4):
@@ -731,6 +737,8 @@ class serversocket(threading.Thread):
         pass
     pass
 
+################################################################################
+
 class manager:
     
     def __init__(self):
@@ -738,6 +746,10 @@ class manager:
         self.servname = ''
         self.confmanager = confmanager(self)
         self.sessmanager = sessmanager(self)
+        
+        pass
+
+    def test(self):
         
         pass
     
@@ -756,6 +768,7 @@ class manager:
         cs6 = serversocket('::', 5222, 6)
         cs6.accepted = self.accept
         cs6.start()
+        
         ss4 = serversocket('0.0.0.0', 5269)
         ss4.accepted = self.accept
         ss4.start()
