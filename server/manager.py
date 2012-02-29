@@ -64,7 +64,6 @@ class session:
         self.RcvdHeader = ''
         self.stream = None
         self.TmCreated = int(time.time())
-        #self.NeedStFeat = False
         self.TmPing = int(time.time())
         self.TmRmsg = int(time.time())
         self.CntSMsg = 0
@@ -147,11 +146,6 @@ class session:
             nx=xm(sess.SentHeader)
             nx.fromstring(newmsg)
             
-            #pmsg='<presence from="{F}" to="{T}" type="subscribed" />'+\
-            #      '<presence from="{F}" to="{T}" />'
-            #pmsg=pmsg.format(F=att['from'],T=att['to'])
-            #
-            #sess.send(pmsg)
             sess.send(nx.tostring())
         except:
             pass
@@ -259,7 +253,6 @@ class session:
                 if self.SentHeader=='':
                     self.SentHeader = nx.tostring()
                     msg = msg+nx.tostring()
-                    #self.NeedStFeat = True
                     if self.streamver == 1.0:
                         msg += '<stream:features>'+\
                                '<dialback xmlns="urn:xmpp:features:dialback">'+\
@@ -532,9 +525,6 @@ class sessmanager:
         
         # if not yet connected
         if stat=='init':
-            #for hostport in hostportlist:
-            #    self.add_active_socket(hostport,sname)
-            #    pass
             self.add_active_socket(hostportlist[0],sname)
             try:
                 self.pendingmsg.remove((s,m,t,stat))
@@ -547,12 +537,6 @@ class sessmanager:
     
     def timercheck(self):
         for ses in self.sessionlist:
-            #if ses.NeedStFeat and ses.TmPing+5<int(time.time()):
-            #    msg = '<stream:features><dialback xmlns="urn:xmpp:features:dialback">'+\
-            #          '<optional/></dialback></stream:features>'
-            #    ses.send(msg)
-            #    ses.NeedStFeat = False
-            #    pass
             if ses.TmPing+60<int(time.time()):
                 ses.stream.ping()
                 a={'from':self.manager.servname,
@@ -579,12 +563,6 @@ class sessmanager:
 
     def print(self):
         xmpp.utils.print_clear()
-        #print("=====================")
-        #print("clients:")
-        #l = "|{JID:<35}|{CRM:>5}|{CSM:>5}|{TP:>4}|{TR:>4}|{PT:>10}|{PS:>10}|{PH:>10}|"
-        #l = l.format(JID="JID",CRM="#recv",CSM="#send",TP="ping",TR="last",
-        #             PT="ptype", PS="pstat", PH="pshow")
-        #print(l)
         for ses in self.sessionlist:
             aptype = 'P'
             if ses.activeopen: aptype = 'A'

@@ -65,6 +65,3 @@ def print_clear():
 
 def nt(ns,tag):
     return "{" + ns + "}" + tag
-
-# def handshakekey(stmid, passwd):
-#

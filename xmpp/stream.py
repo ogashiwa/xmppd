@@ -36,9 +36,6 @@ class stream(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.setDaemon(True)
-        #self.ServerName = "localhost"
-        #self.StateSendStHdr = False
-        #self.StateRecvStHdr = False
         self.CBF_recv = self.nf
         self.CBF_closed = self.nf
         self.CBF_pong = self.nf
