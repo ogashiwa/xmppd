@@ -32,6 +32,9 @@ import xmpp.utils as utils
 from xmpp.msg import xmsg as xm
 
 class entity:
+
+    def Rand(self,len):
+        return utils.randstr(len)
     
     def CreateStanza(self):
         return xm(self.SendStmHdr)
@@ -226,7 +229,6 @@ class entity:
         pass
     
     pass
-
 
 class XmppServerComponent(entity):
     def __init__(self):

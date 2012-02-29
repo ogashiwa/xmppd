@@ -31,7 +31,7 @@
 import getopt, sys
 import xmpp.utils, server.manager
 
-version='0.0.7'
+version='0.0.9'
 
 def usage(): print("xmppd "
                    "[-c <FILENAME>|--config-file=<FILENAME>] "
