@@ -113,6 +113,7 @@ class stream(threading.Thread):
             utils.dprint("R:"+str(self.peeraddr)+": "+res.group(1))
             s = res.group(2)
             self.CBF_recv(self,res.group(1))
+            pass
         while True:
             try:
                 spl = msg.xmlblock(s)

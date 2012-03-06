@@ -88,13 +88,13 @@ class session:
         if result == True:
             self.username = self.authman.username
             self.RcvdHeader = ''
-            utils.dprint("# Authenticated ")
-            utils.dprint("# UserName: {U} ".format(U=self.username))
-            utils.dprint("# Reset Stream ")
+            #utils.dprint("# Authenticated ")
+            #utils.dprint("# UserName: {U} ".format(U=self.username))
+            #utils.dprint("# Reset Stream ")
             pass
         else:
-            utils.dprint("# Authentication failed ")
-            utils.dprint("# Reset Stream ")
+            #utils.dprint("# Authentication failed ")
+            #utils.dprint("# Reset Stream ")
             self.stream.close()
             pass
         pass
@@ -119,13 +119,13 @@ class session:
         try:
             x = xm(self.RcvdHeader)
             x.fromstring(m)
-            utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
+            #utils.dprint("#forward to "+sess.ident()+" type is "+sess.Type)
 
             inttag = ''
             posa = m.find('>')
             posb = m.rfind('<')
             inttag = m[posa+1:posb]
-            utils.dprint(inttag)
+            #utils.dprint(inttag)
             att={'to':x.e.attrib['to']}
         
             if 'from' in x.e.attrib: att['from']=x.e.attrib['from']
@@ -161,7 +161,7 @@ class session:
         pass
 
     def recv_pong(self, stream, m):
-        utils.dprint("pong")
+        #utils.dprint("pong")
         self.TmRmsg = int(time.time())
         pass
     
@@ -193,7 +193,7 @@ class session:
             else:
                 self.streamver = 0.9
                 pass
-            utils.dprint("stream version: "+ str(self.streamver))
+            #utils.dprint("stream version: "+ str(self.streamver))
             
             if m.find('jabber:client')>0:
                 self.Type=ns.TYPE_C
@@ -278,12 +278,12 @@ class session:
         # msg forward check
         # ============================================================
 
-        utils.dprint(x.e.tag)
+        #utils.dprint(x.e.tag)
         
         if 'to' in x.e.attrib:
-            utils.dprint(x.e.attrib['to'])
+            #utils.dprint(x.e.attrib['to'])
             (uname, sname, rname) = splitjid(x.e.attrib['to'])
-            utils.dprint((uname, sname, rname))
+            #utils.dprint((uname, sname, rname))
             
             for sess in self.manager.sessmanager.sessionlist:
                 fw = False
@@ -343,7 +343,7 @@ class session:
                 ResourceStz = x.e.find(ResourceTag)
                 if ResourceStz!=None:
                     self.resource = ResourceStz.text
-                    utils.dprint("# Client Resource is " + self.resource)
+                    #utils.dprint("# Client Resource is " + self.resource)
                     nx = xm(self.SentHeader)
                     nx.create(tag='iq',
                               attrib={'id':x.e.attrib['id'],
@@ -394,7 +394,7 @@ class session:
         elif self.Type==ns.TYPE_M:
             if x.e.tag=='{jabber:component:accept}handshake':
                 self.send('<handshake />')
-                utils.dprint(m)
+                #utils.dprint(m)
                 self.send('<handshake />')
                 return
             pass

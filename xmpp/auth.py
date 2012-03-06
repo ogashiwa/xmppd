@@ -72,14 +72,14 @@ class MechDigestMD5:
         for c in cn: R+=self.B(c)
         return R
     def GetDigestMD5Str(self, username, password, realm, nonce, cnonce, nc, uri, qop, ver):
-        utils.dprint(username)
-        utils.dprint(password)
-        utils.dprint(realm)
-        utils.dprint(nonce)
-        utils.dprint(cnonce)
-        utils.dprint(nc)
-        utils.dprint(uri)
-        utils.dprint(qop)
+        #utils.dprint(username)
+        #utils.dprint(password)
+        #utils.dprint(realm)
+        #utils.dprint(nonce)
+        #utils.dprint(cnonce)
+        #utils.dprint(nc)
+        #utils.dprint(uri)
+        #utils.dprint(qop)
         A0=self.C([username,realm,password])
         A1=self.CreateA1(A0,nonce,cnonce)
         A2=self.C(['AUTHENTICATE',uri])
@@ -103,7 +103,7 @@ class MechDigestMD5:
         userinfo={}
         b64str = str(data)
         binstr = base64.b64decode(b64str.encode("cp932"))
-        utils.dprint(binstr)
+        #utils.dprint(binstr)
         tmpstr = ''
         for i in range(0,len(binstr)):
             tmpstr = tmpstr + chr(binstr[i])
@@ -145,8 +145,8 @@ class MechDigestMD5:
             response = userinfo["response"]
             chkreshex = self.GetDigestMD5Str(username, password,
                                              realm, nonce, cnonce, nc, uri, qop, 1)
-            utils.dprint("RECV: "+response)
-            utils.dprint("SEND: "+chkreshex)
+            #utils.dprint("RECV: "+response)
+            #utils.dprint("SEND: "+chkreshex)
             if chkreshex == response: authresult = True
             else: authresult = False
             if authresult == True:
@@ -254,7 +254,7 @@ class manager:
         msgtype = x.e.tag
         pos=msgtype.find('}')
         if pos>0: msgtype = msgtype[pos+1:]
-        utils.dprint(msgtype)
+        #utils.dprint(msgtype)
         if self.mech is None: self.ProcMsgAuthentication(m)
         else: self.mech.proc(m)
         pass

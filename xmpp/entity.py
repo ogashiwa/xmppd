@@ -107,7 +107,7 @@ class entity:
         self.stream.send(' ')
         x=xm(self.RecvStmHdr)
         x.fromstring(m)
-        utils.dprint(x.e.tag)
+        #utils.dprint(x.e.tag)
         
         if '{http://etherx.jabber.org/streams}stream'==x.e.tag:
             self.RecvStmHdr = m
